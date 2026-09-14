@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, NoReturn
+from collections.abc import Awaitable, Callable
+from typing import NoReturn
 
 from .protocol import NOT_IMPLEMENTED_METHODS, SPECIAL_METHODS, _not_implemented
 
@@ -11,16 +12,16 @@ def _method_name(method: str) -> str:
     return method.replace(".", "_")
 
 
-def _sync_stub(method: str):
-    def stub(self: object, *args: Any, **kwargs: Any) -> NoReturn:
+def _sync_stub(method: str) -> Callable[..., NoReturn]:
+    def stub(_self: object, *_args: object, **_kwargs: object) -> NoReturn:
         _not_implemented(method)
 
     stub.__name__ = _method_name(method)
     return stub
 
 
-def _async_stub(method: str):
-    async def stub(self: object, *args: Any, **kwargs: Any) -> NoReturn:
+def _async_stub(method: str) -> Callable[..., Awaitable[NoReturn]]:
+    async def stub(_self: object, *_args: object, **_kwargs: object) -> NoReturn:
         _not_implemented(method)
 
     stub.__name__ = _method_name(method)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import tempfile
 import uuid
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
@@ -71,7 +72,7 @@ class FakeHerdrServer:
 
 @pytest_asyncio.fixture
 async def fake_server() -> AsyncIterator[FakeHerdrServer]:
-    socket_path = Path("/tmp") / f"herdr-test-{uuid.uuid4().hex}.sock"
+    socket_path = Path(tempfile.gettempdir()) / f"herdr-test-{uuid.uuid4().hex}.sock"
     server = FakeHerdrServer(socket_path)
     await server.start()
     yield server

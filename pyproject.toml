@@ -26,6 +26,8 @@ dev = [
   "pyrefly>=0.18.0",
   "pytest>=8.0",
   "pytest-asyncio>=0.24",
+  "pytest-cov>=6.0",
+  "pre-commit>=4.0",
   "ruff>=0.11.0",
 ]
 
@@ -33,7 +35,12 @@ dev = [
 packages = ["src/herdr_client"]
 
 [tool.pytest.ini_options]
-addopts = ["--strict-markers"]
+addopts = [
+  "--strict-markers",
+  "--cov=herdr_client",
+  "--cov-report=term-missing",
+  "--cov-fail-under=90",
+]
 asyncio_mode = "auto"
 pythonpath = ["src"]
 testpaths = ["tests"]
@@ -47,12 +54,61 @@ target-version = "py313"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
-select = ["ASYNC", "B", "E", "F", "I", "RUF", "UP"]
+select = [
+  "A",
+  "ANN",
+  "ARG",
+  "ASYNC",
+  "B",
+  "BLE",
+  "C4",
+  "C90",
+  "DTZ",
+  "E",
+  "F",
+  "FA",
+  "I",
+  "ICN",
+  "ISC",
+  "N",
+  "PERF",
+  "PGH",
+  "PIE",
+  "PT",
+  "RET",
+  "RSE",
+  "RUF",
+  "S",
+  "SIM",
+  "SLF",
+  "SLOT",
+  "UP",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# ``format`` is part of the public protocol API and must remain a keyword.
+"src/herdr_client/async_client/client.py" = ["A002"]
+"src/herdr_client/interfaces.py" = ["A002"]
+"src/herdr_client/sync/client.py" = ["A002"]
+# Keep the existing import-compatible helper name.
+"src/herdr_client/transport.py" = ["N802"]
+# Assertions are the native failure mechanism in pytest tests.
+"tests/**/*.py" = ["S101"]
+# Integration fixtures invoke fixed git commands and do not handle user input.
+"tests/integration/**/*.py" = ["S603", "S607"]
+# Membership assertions are clearer in their natural pytest form.
+"tests/test_protocol.py" = ["SIM300"]
 
 [tool.ruff.format]
 quote-style = "double"
 
 [tool.pyrefly]
-project-includes = ["src/**/*.py"]
+preset = "all"
+project-includes = ["src/**/*.py", "src/**/*.pyi", "tests/typecheck_contracts.py"]
 search-path = ["src"]
 python-version = "3.13"
+check-unannotated-defs = true
+strict-callable-subtyping = true
+strict-partial-subtyping = true
+spec-compliant-overloads = true
+treat-all-caps-as-final = true

@@ -10,7 +10,7 @@ def _config_dir() -> Path:
 
 
 def _session_socket_path(session: str) -> Path:
-    if not session:
+    if session == "":
         raise ValueError("session must not be empty")
     return _config_dir() / "sessions" / session / "herdr.sock"
 
@@ -21,11 +21,11 @@ def DEFAULT_SOCKET_CANDIDATES(session: str | None = None) -> list[Path]:
         return [_session_socket_path(session)]
 
     explicit = os.environ.get("HERDR_SOCKET_PATH")
-    if explicit:
+    if explicit is not None and explicit != "":
         return [Path(explicit)]
 
     env_session = os.environ.get("HERDR_SESSION")
-    if env_session:
+    if env_session is not None and env_session != "":
         return [_session_socket_path(env_session)]
 
     return [_config_dir() / "herdr.sock"]

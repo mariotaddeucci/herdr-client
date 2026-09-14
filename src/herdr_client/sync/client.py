@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import socket
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
-from typing import Any, BinaryIO
+from types import TracebackType
+from typing import BinaryIO, Literal, cast, overload
 
 from ..exceptions import HerdrClientError
 from ..protocol import (
@@ -11,12 +12,40 @@ from ..protocol import (
     JsonDict,
     _decode_json,
     _encode_envelope,
+    _event_envelope,
     _new_id,
-    _raise_for_error,
     _response_result,
+    _subscription_ack,
 )
 from ..stub_methods import SyncMethodStubs
 from ..transport import resolve_socket_path
+from ..types import (
+    EventEnvelope,
+    EventsSubscribeParams,
+    EventSubscription,
+    JSONValue,
+    OkResult,
+    OutputMatch,
+    OutputMatchedResult,
+    PaneListParams,
+    PaneListResult,
+    PaneReadParams,
+    PaneReadResponse,
+    PaneSendInputParams,
+    PaneSendKeysParams,
+    PaneSendTextParams,
+    PaneWaitForOutputParams,
+    PingParams,
+    PongResult,
+    ReadFormat,
+    ReadSource,
+    ResponseResult,
+    SubscriptionAck,
+    SubscriptionStartedResult,
+    TabListParams,
+    TabListResult,
+    WorkspaceListResult,
+)
 
 
 class Subscription:
@@ -26,17 +55,17 @@ class Subscription:
         self,
         socket_path: Path,
         timeout: float,
-        subscriptions: Iterable[JsonDict],
+        subscriptions: Iterable[EventSubscription],
     ) -> None:
         self._socket_path = socket_path
         self._timeout = timeout
         self._subscriptions = list(subscriptions)
         self._socket: socket.socket | None = None
         self._file: BinaryIO | None = None
-        self._ack: JsonDict | None = None
+        self._ack: SubscriptionAck | None = None
 
     @property
-    def ack(self) -> JsonDict:
+    def ack(self) -> SubscriptionAck:
         """Return the server acknowledgement after entering the context."""
         if self._ack is None:
             raise RuntimeError("subscription has not been opened")
@@ -53,13 +82,12 @@ class Subscription:
                 {
                     "id": _new_id(),
                     "method": "events.subscribe",
-                    "params": {"subscriptions": self._subscriptions},
+                    "params": {"subscriptions": cast(JSONValue, self._subscriptions)},
                 },
             )
             self._file = self._socket.makefile("rb")
             response = _read_json_line(self._file)
-            _raise_for_error(response)
-            self._ack = response
+            self._ack = _subscription_ack(response)
             return self
         except BaseException:
             self.close()
@@ -69,7 +97,7 @@ class Subscription:
         self,
         exc_type: type[BaseException] | None,
         exc: BaseException | None,
-        traceback: Any,
+        traceback: TracebackType | None,
     ) -> None:
         self.close()
 
@@ -82,7 +110,7 @@ class Subscription:
         if connection is not None:
             connection.close()
 
-    def events(self) -> Iterator[JsonDict]:
+    def events(self) -> Iterator[EventEnvelope]:
         """Yield pushed event payloads until the server closes the socket."""
         file = self._file
         if file is None or self._socket is None:
@@ -92,12 +120,9 @@ class Subscription:
             line = _readline(file)
             if line == b"":
                 return
-            if not line.strip():
+            if line.strip() == b"":
                 continue
-            event = _decode_json(line)
-            if not isinstance(event, dict):
-                raise HerdrClientError("herdr event must be a JSON object")
-            yield event
+            yield _event_envelope(_decode_json(line))
 
 
 class HerdrClient(SyncMethodStubs):
@@ -120,7 +145,76 @@ class HerdrClient(SyncMethodStubs):
         )
         self.timeout = timeout
 
-    def request(self, method: str, params: JsonDict | None = None) -> JsonDict:
+    @overload
+    def request(
+        self, method: Literal["ping"], params: PingParams | None = None
+    ) -> PongResult: ...
+
+    @overload
+    def request(
+        self, method: Literal["workspace.list"], params: None = None
+    ) -> WorkspaceListResult: ...
+
+    @overload
+    def request(
+        self, method: Literal["tab.list"], params: TabListParams | None = None
+    ) -> TabListResult: ...
+
+    @overload
+    def request(
+        self, method: Literal["pane.list"], params: PaneListParams | None = None
+    ) -> PaneListResult: ...
+
+    @overload
+    def request(
+        self,
+        method: Literal["pane.send_text"],
+        params: PaneSendTextParams | None = None,
+    ) -> OkResult: ...
+
+    @overload
+    def request(
+        self,
+        method: Literal["pane.send_keys"],
+        params: PaneSendKeysParams | None = None,
+    ) -> OkResult: ...
+
+    @overload
+    def request(
+        self,
+        method: Literal["pane.send_input"],
+        params: PaneSendInputParams | None = None,
+    ) -> OkResult: ...
+
+    @overload
+    def request(
+        self,
+        method: Literal["pane.read"],
+        params: PaneReadParams | None = None,
+    ) -> PaneReadResponse: ...
+
+    @overload
+    def request(
+        self,
+        method: Literal["pane.wait_for_output"],
+        params: PaneWaitForOutputParams | None = None,
+    ) -> OutputMatchedResult: ...
+
+    @overload
+    def request(
+        self,
+        method: Literal["events.subscribe"],
+        params: EventsSubscribeParams | None = None,
+    ) -> SubscriptionStartedResult: ...
+
+    @overload
+    def request(
+        self, method: str, params: Mapping[str, JSONValue] | None = None
+    ) -> JsonDict: ...
+
+    def request(
+        self, method: str, params: Mapping[str, object] | None = None
+    ) -> ResponseResult:
         """Call a canonical herdr socket method and return its result."""
         if method not in CANONICAL_METHODS:
             raise HerdrClientError(f"unsupported herdr socket method: {method}")
@@ -132,7 +226,10 @@ class HerdrClient(SyncMethodStubs):
                 {
                     "id": _new_id(),
                     "method": method,
-                    "params": params or {},
+                    "params": cast(
+                        Mapping[str, JSONValue],
+                        params if params is not None else {},
+                    ),
                 },
             )
             with connection.makefile("rb") as file:
@@ -141,46 +238,54 @@ class HerdrClient(SyncMethodStubs):
         finally:
             connection.close()
 
-    def ping(self) -> JsonDict:
+    def ping(self) -> PongResult:
         return self.request("ping")
 
-    def workspace_list(self) -> JsonDict:
+    def workspace_list(self) -> WorkspaceListResult:
         return self.request("workspace.list")
 
-    def tab_list(self, workspace_id: str | None = None) -> JsonDict:
-        params = {"workspace_id": workspace_id} if workspace_id is not None else {}
+    def tab_list(self, workspace_id: str | None = None) -> TabListResult:
+        params: TabListParams = {}
+        if workspace_id is not None:
+            params["workspace_id"] = workspace_id
         return self.request("tab.list", params)
 
-    def pane_list(self, workspace_id: str | None = None) -> JsonDict:
-        params = {"workspace_id": workspace_id} if workspace_id is not None else {}
+    def pane_list(self, workspace_id: str | None = None) -> PaneListResult:
+        params: PaneListParams = {}
+        if workspace_id is not None:
+            params["workspace_id"] = workspace_id
         return self.request("pane.list", params)
 
-    def pane_send_text(self, pane_id: str, text: str) -> JsonDict:
-        return self.request("pane.send_text", {"pane_id": pane_id, "text": text})
+    def pane_send_text(self, pane_id: str, text: str) -> OkResult:
+        params: PaneSendTextParams = {"pane_id": pane_id, "text": text}
+        return self.request("pane.send_text", params)
 
-    def pane_send_keys(self, pane_id: str, keys: Sequence[str]) -> JsonDict:
-        return self.request("pane.send_keys", {"pane_id": pane_id, "keys": list(keys)})
+    def pane_send_keys(self, pane_id: str, keys: Sequence[str]) -> OkResult:
+        params: PaneSendKeysParams = {"pane_id": pane_id, "keys": list(keys)}
+        return self.request("pane.send_keys", params)
 
     def pane_send_input(
         self,
         pane_id: str,
         text: str = "",
         keys: Sequence[str] | None = None,
-    ) -> JsonDict:
-        return self.request(
-            "pane.send_input",
-            {"pane_id": pane_id, "text": text, "keys": list(keys or [])},
-        )
+    ) -> OkResult:
+        params: PaneSendInputParams = {
+            "pane_id": pane_id,
+            "text": text,
+            "keys": list(keys) if keys is not None else [],
+        }
+        return self.request("pane.send_input", params)
 
     def pane_read(
         self,
         pane_id: str,
-        source: str = "recent",
+        source: ReadSource = "recent",
         lines: int | None = 80,
         strip_ansi: bool = True,
-        format: str | None = None,
-    ) -> JsonDict:
-        params: JsonDict = {
+        format: ReadFormat | None = None,
+    ) -> PaneReadResponse:
+        params: PaneReadParams = {
             "pane_id": pane_id,
             "source": source,
             "strip_ansi": strip_ansi,
@@ -194,13 +299,13 @@ class HerdrClient(SyncMethodStubs):
     def pane_wait_for_output(
         self,
         pane_id: str,
-        match: JsonDict,
-        source: str = "recent",
+        match: OutputMatch,
+        source: ReadSource = "recent",
         lines: int | None = None,
         timeout_ms: int | None = None,
         strip_ansi: bool = True,
-    ) -> JsonDict:
-        params: JsonDict = {
+    ) -> OutputMatchedResult:
+        params: PaneWaitForOutputParams = {
             "pane_id": pane_id,
             "source": source,
             "match": match,
@@ -212,7 +317,7 @@ class HerdrClient(SyncMethodStubs):
             params["timeout_ms"] = timeout_ms
         return self.request("pane.wait_for_output", params)
 
-    def subscribe(self, subscriptions: Iterable[JsonDict]) -> Subscription:
+    def subscribe(self, subscriptions: Iterable[EventSubscription]) -> Subscription:
         """Create a context manager for pushed herdr events."""
         return Subscription(self.socket_path, self.timeout, subscriptions)
 
@@ -235,7 +340,9 @@ def _connect(socket_path: Path, timeout_seconds: float) -> socket.socket:
     return connection
 
 
-def _send_envelope(connection: socket.socket, envelope: JsonDict) -> None:
+def _send_envelope(
+    connection: socket.socket, envelope: Mapping[str, JSONValue]
+) -> None:
     try:
         connection.sendall(_encode_envelope(envelope))
     except TimeoutError as exc:
@@ -251,7 +358,7 @@ def _read_json_line(file: BinaryIO) -> JsonDict:
     response = _decode_json(line)
     if not isinstance(response, dict):
         raise HerdrClientError("herdr response must be a JSON object")
-    return response
+    return cast(JsonDict, response)
 
 
 def _readline(file: BinaryIO) -> bytes:

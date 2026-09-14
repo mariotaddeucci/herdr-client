@@ -575,12 +575,15 @@ def test_worktree_lifecycle_in_private_repository(
                 continue
             repo_root = worktree_info.get("repo_root")
             checkout_path = worktree_info.get("checkout_path")
-            if repo_root == str(repo) or (
-                isinstance(checkout_path, str)
-                and integration_root.resolve() in Path(checkout_path).resolve().parents
+            if isinstance(workspace_id, str) and (
+                repo_root == str(repo)
+                or (
+                    isinstance(checkout_path, str)
+                    and integration_root.resolve()
+                    in Path(checkout_path).resolve().parents
+                )
             ):
-                if isinstance(workspace_id, str):
-                    owned_ids.add(workspace_id)
+                owned_ids.add(workspace_id)
         for workspace_id in owned_ids & remaining_ids:
             sync_client.request(
                 "workspace.close",

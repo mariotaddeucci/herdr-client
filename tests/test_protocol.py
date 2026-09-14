@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import json
+import re
 from pathlib import Path
+from typing import get_args
 
 import pytest
 
 from herdr_client import AsyncHerdrClient, HerdrClient, HerdrClientError
+from herdr_client.generated_types import RequestMethod
 from herdr_client.protocol import (
     CANONICAL_METHODS,
     CONVENIENCE_METHODS,
@@ -13,7 +17,15 @@ from herdr_client.protocol import (
     SCHEMA_PROTOCOL,
     SCHEMA_VERSION,
     SPECIAL_METHODS,
+    _response_result,
 )
+from herdr_client.schema import (
+    OFFICIAL_SCHEMA_PROTOCOL,
+    OFFICIAL_SCHEMA_SHA256,
+    OFFICIAL_SCHEMA_URL,
+    OFFICIAL_SCHEMA_VERSION,
+)
+from herdr_client.stub_methods import STUB_METHODS
 
 
 def test_method_registry_matches_the_official_schema_surface() -> None:
@@ -40,12 +52,34 @@ def test_schema_metadata_contains_required_and_optional_fields() -> None:
     assert "placement" in plugin_open.properties
 
 
+def test_official_schema_identity_is_pinned() -> None:
+    assert OFFICIAL_SCHEMA_PROTOCOL == SCHEMA_PROTOCOL
+    assert OFFICIAL_SCHEMA_VERSION == SCHEMA_VERSION
+    assert len(OFFICIAL_SCHEMA_SHA256) == 64
+    assert re.search(r"/[0-9a-f]{40}/", OFFICIAL_SCHEMA_URL)
+
+    schema_path = Path(__file__).parents[1] / "schema/herdr-api.schema.json"
+    schema = json.loads(schema_path.read_text())
+    assert len(schema["schemas"]["request"]["oneOf"]) == len(METHOD_SCHEMAS)
+    assert len(get_args(RequestMethod.__value__)) == len(METHOD_SCHEMAS)
+
+
+def test_static_stub_declarations_match_runtime_stub_methods() -> None:
+    pyi_path = Path(__file__).parents[1] / "src/herdr_client/stub_methods.pyi"
+    declarations = set(
+        re.findall(r"^\s+(?:async )?def ([a-z0-9_]+)\(", pyi_path.read_text(), re.M)
+    )
+    runtime_names = {method.replace(".", "_") for method in STUB_METHODS}
+
+    assert declarations == runtime_names
+
+
 @pytest.mark.parametrize(
     "method",
     sorted(NOT_IMPLEMENTED_METHODS | SPECIAL_METHODS),
 )
-def test_sync_stub_raises_not_implemented(method: str) -> None:
-    client = HerdrClient(socket_path=Path("/tmp/not-used-herdr.sock"))
+def test_sync_stub_raises_not_implemented(method: str, tmp_path: Path) -> None:
+    client = HerdrClient(socket_path=tmp_path / "not-used-herdr.sock")
 
     with pytest.raises(NotImplementedError, match=method.replace(".", r"\.")):
         getattr(client, method.replace(".", "_"))()
@@ -56,15 +90,20 @@ def test_sync_stub_raises_not_implemented(method: str) -> None:
     "method",
     sorted(NOT_IMPLEMENTED_METHODS | SPECIAL_METHODS),
 )
-async def test_async_stub_raises_not_implemented(method: str) -> None:
-    client = AsyncHerdrClient(socket_path=Path("/tmp/not-used-herdr.sock"))
+async def test_async_stub_raises_not_implemented(method: str, tmp_path: Path) -> None:
+    client = AsyncHerdrClient(socket_path=tmp_path / "not-used-herdr.sock")
 
     with pytest.raises(NotImplementedError, match=method.replace(".", r"\.")):
         await getattr(client, method.replace(".", "_"))()
 
 
-def test_unknown_method_is_still_a_client_error() -> None:
-    client = HerdrClient(socket_path=Path("/tmp/not-used-herdr.sock"))
+def test_unknown_method_is_still_a_client_error(tmp_path: Path) -> None:
+    client = HerdrClient(socket_path=tmp_path / "not-used-herdr.sock")
 
     with pytest.raises(HerdrClientError, match="unsupported herdr socket method"):
         client.request("not.a.real.method")
+
+
+def test_response_result_requires_a_result_discriminator() -> None:
+    with pytest.raises(HerdrClientError, match="missing its type"):
+        _response_result({"id": "req_1", "result": {}})

@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, NoReturn
+from typing import NoReturn, cast
 
 from .exceptions import HerdrApiError, HerdrClientError
+from .types import EventEnvelope, JsonObject, JSONValue, SubscriptionAck
 
-JsonDict = dict[str, Any]
+# Kept as an import-compatible alias for callers that used the old internal name.
+JsonDict = JsonObject
 SCHEMA_PROTOCOL = 22
 SCHEMA_VERSION = 1
 
@@ -514,15 +517,31 @@ def _new_id() -> str:
     return f"req_{uuid.uuid4().hex}"
 
 
-def _encode_envelope(envelope: JsonDict) -> bytes:
+def _encode_envelope(envelope: Mapping[str, JSONValue]) -> bytes:
     return json.dumps(envelope).encode("utf-8") + b"\n"
 
 
-def _decode_json(line: bytes) -> Any:
+def _decode_json(line: bytes) -> JSONValue:
     try:
-        return json.loads(line)
+        decoded: object = json.loads(line)
     except json.JSONDecodeError as exc:
         raise HerdrClientError("herdr socket returned invalid JSON") from exc
+    return _narrow_json(decoded)
+
+
+def _narrow_json(value: object) -> JSONValue:
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, list):
+        return [_narrow_json(item) for item in cast(list[object], value)]
+    if isinstance(value, dict):
+        result: JsonObject = {}
+        for key, item in cast(dict[object, object], value).items():
+            if not isinstance(key, str):
+                raise HerdrClientError("herdr socket returned invalid JSON")
+            result[key] = _narrow_json(item)
+        return result
+    raise HerdrClientError("herdr socket returned invalid JSON")
 
 
 def _raise_for_error(response: JsonDict) -> None:
@@ -546,7 +565,30 @@ def _response_result(response: JsonDict) -> JsonDict:
     result = response.get("result")
     if not isinstance(result, dict):
         raise HerdrClientError("herdr response result must be a JSON object")
+    result_type = result.get("type")
+    if not isinstance(result_type, str):
+        raise HerdrClientError("herdr response result is missing its type")
     return result
+
+
+def _subscription_ack(response: JsonDict) -> SubscriptionAck:
+    _raise_for_error(response)
+    if not isinstance(response.get("id"), str):
+        raise HerdrClientError("herdr subscription acknowledgement is invalid")
+    result = response.get("result")
+    if not isinstance(result, dict) or result.get("type") != "subscription_started":
+        raise HerdrClientError("herdr subscription acknowledgement is invalid")
+    return cast(SubscriptionAck, response)
+
+
+def _event_envelope(value: JSONValue) -> EventEnvelope:
+    if not isinstance(value, dict):
+        raise HerdrClientError("herdr event must be a JSON object")
+    if not isinstance(value.get("event"), str) or not isinstance(
+        value.get("data"), dict
+    ):
+        raise HerdrClientError("herdr event envelope is invalid")
+    return cast(EventEnvelope, value)
 
 
 def _not_implemented(method: str) -> NoReturn:

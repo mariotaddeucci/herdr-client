@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import socket
+import tempfile
 import threading
 import time
 import uuid
@@ -29,7 +30,9 @@ Response = JsonDict | ResponseFactory
 
 class FakeSyncHerdrServer:
     def __init__(self) -> None:
-        self.socket_path = Path("/tmp") / f"herdr-sync-test-{uuid.uuid4().hex}.sock"
+        self.socket_path = (
+            Path(tempfile.gettempdir()) / f"herdr-sync-test-{uuid.uuid4().hex}.sock"
+        )
         self.handlers: list[dict[str, Any]] = []
         self.requests: list[JsonDict] = []
         self._thread = threading.Thread(target=self._serve, daemon=True)
@@ -84,7 +87,7 @@ class FakeSyncHerdrServer:
                             connection.sendall(json.dumps(payload).encode() + b"\n")
                         except OSError:
                             break
-        except BaseException as exc:  # pragma: no cover - surfaced in close()
+        except BaseException as exc:  # noqa: BLE001  # surfaced in close()
             self._error = exc
         finally:
             server.close()

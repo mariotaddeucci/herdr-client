@@ -68,6 +68,24 @@ asyncio.run(main())
 Os métodos de `HerdrClient` são síncronos. Os métodos de `AsyncHerdrClient` são
 assíncronos e devem ser usados com `await`.
 
+## Tipos
+
+O pacote inclui `py.typed` e modelos `TypedDict` derivados do schema oficial. Os retornos
+dos wrappers continuam sendo dicionários comuns, então o acesso por índice permanece
+disponível:
+
+```python
+from herdr_client import HerdrClient, PongResult
+
+
+result: PongResult = HerdrClient().ping()
+print(result["version"])
+```
+
+`request()` possui overloads precisos quando o nome do método é literal e retorna um
+`JsonObject` no fallback dinâmico. Os tipos compartilhados, como `ReadSource`, `OutputMatch`
+e `EventSubscription`, estão disponíveis em `herdr_client` e `herdr_client.types`.
+
 ## Socket
 
 Sem `socket_path` explícito, ambos os clientes seguem esta ordem:
@@ -163,14 +181,22 @@ O import legado `herdr_client.client` continua disponível para `AsyncHerdrClien
 
 ## Desenvolvimento
 
-As configurações de `pytest`, `ruff` e `pyrefly` ficam centralizadas no `pyproject.toml`.
+As configurações de `pytest`, `pytest-cov`, `ruff` e `pyrefly` ficam centralizadas no
+`pyproject.toml`. O pre-commit executa verificações de estrutura, segredos, segurança,
+formatação, lint e tipos antes de cada commit. A execução dos testes gera o relatório de
+linhas não cobertas e exige no mínimo 90% de cobertura.
 
 ```bash
+uv run pre-commit install
+uv run pre-commit run --all-files
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
 uv run pyrefly check
 uv build
+PYTHONPATH=src uv run python tools/fetch_schema.py --check
+PYTHONPATH=src uv run python tools/generate_models.py --check
+PYTHONPATH=src uv run python tools/generate_stubs.py --check
 ```
 
 ### Integração com Herdr
