@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "herdr-python-client"
+version = "0.2.0"
+description = "Sync and async Python clients for the herdr Unix socket API"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { file = "LICENSE" }
+authors = [{ name = "Martin Taddeucci" }]
+keywords = ["herdr", "terminal", "socket", "async", "client", "automation"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "pyrefly>=0.18.0",
+  "pytest>=8.0",
+  "pytest-asyncio>=0.24",
+  "ruff>=0.11.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/herdr_client"]
+
+[tool.pytest.ini_options]
+addopts = ["--strict-markers"]
+asyncio_mode = "auto"
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["ASYNC", "B", "E", "F", "I", "RUF", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pyrefly]
+project-includes = ["src/**/*.py"]
+search-path = ["src"]
+python-version = "3.13"

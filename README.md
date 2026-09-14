@@ -1,2 +1,178 @@
-# herdr-py
+# herdr-python-client
 
+Clientes Python síncrono e assíncrono para a API de Unix socket do
+[herdr](https://github.com/ogulcancelik/herdr). O pacote implementa o protocolo canônico
+newline-delimited JSON sem dependências de runtime.
+
+## Requisitos
+
+- Python 3.13 ou superior
+- `uv`
+- Uma instância do herdr expondo o Unix socket
+
+## Instalação
+
+```bash
+uv sync
+```
+
+O ambiente virtual, as dependências de desenvolvimento e o lockfile são gerenciados pelo
+`uv`. O pacote não possui dependências de runtime.
+
+## Imports
+
+Os dois clientes podem ser importados diretamente pelo pacote principal:
+
+```python
+from herdr_client import AsyncHerdrClient, HerdrClient
+```
+
+Ou pelos subpacotes correspondentes:
+
+```python
+from herdr_client.async_client import AsyncHerdrClient
+from herdr_client.sync import HerdrClient
+```
+
+## Uso síncrono
+
+```python
+from herdr_client import HerdrClient
+
+
+client = HerdrClient()
+print(client.ping())
+print(client.workspace_list())
+client.pane_send_input("w64e95948145ed1-1", text="pytest -q", keys=["Enter"])
+```
+
+## Uso assíncrono
+
+```python
+import asyncio
+
+from herdr_client import AsyncHerdrClient
+
+
+async def main() -> None:
+    client = AsyncHerdrClient()
+
+    print(await client.ping())
+    print(await client.workspace_list())
+    await client.pane_send_input("w64e95948145ed1-1", text="pytest -q", keys=["Enter"])
+
+
+asyncio.run(main())
+```
+
+Os métodos de `HerdrClient` são síncronos. Os métodos de `AsyncHerdrClient` são
+assíncronos e devem ser usados com `await`.
+
+## Socket
+
+Sem `socket_path` explícito, ambos os clientes seguem esta ordem:
+
+1. `session="name"` no construtor
+2. `HERDR_SOCKET_PATH`
+3. `HERDR_SESSION=name`
+4. `$HOME/.config/herdr/herdr.sock`
+
+Sessões nomeadas usam `$HOME/.config/herdr/sessions/<name>/herdr.sock`.
+
+```python
+from pathlib import Path
+
+from herdr_client import AsyncHerdrClient, HerdrClient
+
+
+sync_client = HerdrClient(socket_path=Path("/run/user/1000/herdr.sock"))
+async_client = AsyncHerdrClient(session="docs")
+```
+
+## Eventos
+
+O cliente síncrono usa context manager e iterator:
+
+```python
+from herdr_client import HerdrClient
+
+
+with HerdrClient().subscribe([{"type": "workspace.created"}]) as subscription:
+    print(subscription.ack)
+    for event in subscription.events():
+        print(event)
+```
+
+O cliente assíncrono usa async context manager e async generator:
+
+```python
+import asyncio
+
+from herdr_client import AsyncHerdrClient
+
+
+async def watch_events() -> None:
+    async with AsyncHerdrClient().subscribe(
+        [{"type": "workspace.created"}]
+    ) as subscription:
+        print(subscription.ack)
+        async for event in subscription.events():
+            print(event)
+
+
+asyncio.run(watch_events())
+```
+
+`Subscription.close()` e `AsyncSubscription.aclose()` são idempotentes.
+
+## API
+
+Os dois clientes oferecem a mesma superfície de operações:
+
+- `request(method, params)`
+- `ping()`
+- `workspace_list()`
+- `tab_list(workspace_id=None)`
+- `pane_list(workspace_id=None)`
+- `pane_send_text(pane_id, text)`
+- `pane_send_keys(pane_id, keys)`
+- `pane_send_input(pane_id, text="", keys=None)`
+- `pane_read(pane_id, source="recent", lines=80, strip_ansi=True, format=None)`
+- `pane_wait_for_output(...)`
+- `subscribe(subscriptions)`
+
+Métodos não reconhecidos pela API canônica geram `HerdrClientError`. Respostas de erro do
+herdr geram `HerdrApiError`, que expõe os atributos `code` e `message`.
+
+## Cobertura da API
+
+O registro segue o schema oficial do herdr com protocolo `22` e contém 103 métodos JSON. Todos
+os métodos oficiais JSON podem ser enviados pelo `request()` bruto. Os 10 métodos de conveniência
+implementados são `ping`, `workspace_list`, `tab_list`, `pane_list`, `pane_send_text`,
+`pane_send_keys`, `pane_send_input`, `pane_read`, `pane_wait_for_output` e `subscribe`.
+
+Os demais métodos oficiais possuem stubs nomeados nos clientes sync e async e levantam
+`NotImplementedError`, identificando o método e o schema correspondente. Use `request()`
+quando precisar chamar um método ainda sem wrapper. Os metadados estão disponíveis por meio
+de `METHOD_SCHEMAS`, `CANONICAL_METHODS`, `SCHEMA_PROTOCOL` e `SCHEMA_VERSION`.
+
+`pane.graphics.stream` permanece separado porque usa framing híbrido: request JSON inicial,
+headers JSON e bytes crus. Ele ainda levanta `NotImplementedError`.
+
+O import legado `herdr_client.client` continua disponível para `AsyncHerdrClient`.
+
+## Desenvolvimento
+
+As configurações de `pytest`, `ruff` e `pyrefly` ficam centralizadas no `pyproject.toml`.
+
+```bash
+uv run pytest
+uv run ruff check .
+uv run ruff format --check .
+uv run pyrefly check
+uv build
+```
+
+## Licença
+
+Apache License 2.0.
