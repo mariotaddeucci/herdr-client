@@ -173,6 +173,21 @@ uv run pyrefly check
 uv build
 ```
 
+### Integração com Herdr
+
+Os testes live ficam em `tests/integration` e não rodam por padrão. Eles exigem um
+socket explícito para evitar que a suíte use a sessão padrão por acidente:
+
+```bash
+HERDR_INTEGRATION_SOCKET="$HOME/.config/herdr/sessions/pytest/herdr.sock" \
+  uv run pytest --run-integration -m integration --no-cov
+```
+
+As fixtures criam workspaces, tabs, panes e repositórios Git temporários dentro do
+diretório da sessão do pytest e removem somente os recursos que criaram. Os comandos
+enviados aos panes são limitados a `printf`, `pwd` e `true`; métodos de agentes,
+integrações, plugins executáveis e operações globais ficam fora dessa fase.
+
 ## Licença
 
 Apache License 2.0.

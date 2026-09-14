@@ -37,6 +37,9 @@ addopts = ["--strict-markers"]
 asyncio_mode = "auto"
 pythonpath = ["src"]
 testpaths = ["tests"]
+markers = [
+  "integration: tests that require an explicitly configured live Herdr socket",
+]
 
 [tool.ruff]
 line-length = 88
