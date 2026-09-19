@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="herdr-client logo">
+  <rect width="48" height="48" rx="13" fill="#12343b"/>
+  <path d="M13 16.5h22v15H13z" fill="none" stroke="#75e8bc" stroke-width="2.5"/>
+  <path d="m18 22 4 4-4 4M25 30h6" fill="none" stroke="#f3d98b" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"/>
+</svg>

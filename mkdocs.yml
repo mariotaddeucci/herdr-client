@@ -3,14 +3,23 @@ site_description: Sync and async Python clients for the herdr Unix socket API
 site_url: https://mariotaddeucci.github.io/herdr-client/
 repo_url: https://github.com/mariotaddeucci/herdr-client
 repo_name: mariotaddeucci/herdr-client
+site_author: Mario Taddeucci
+copyright: Copyright 2026 Mario Taddeucci
 
 theme:
   name: material
   language: en
+  logo: assets/logo.svg
+  favicon: assets/logo.svg
+  font: false
   features:
+    - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.instant
     - navigation.sections
     - navigation.top
+    - navigation.footer
+    - header.autohide
     - search.highlight
     - search.suggest
     - content.code.copy
@@ -18,16 +27,20 @@ theme:
   icon:
     repo: fontawesome/brands/github
   palette:
-    - media: "(prefers-color-scheme: dark)"
-      scheme: slate
-      toggle:
-        icon: material/weather-sunny
-        name: Switch to light mode
     - media: "(prefers-color-scheme: light)"
       scheme: default
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
 
 plugins:
   - search
@@ -58,6 +71,18 @@ markdown_extensions:
 
 extra_css:
   - stylesheets/extra.css
+
+extra_javascript:
+  - javascripts/a11y.js
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mariotaddeucci/herdr-client
+      name: Source code on GitHub
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/herdr-client/
+      name: herdr-client on PyPI
 
 nav:
   - Home: index.md
