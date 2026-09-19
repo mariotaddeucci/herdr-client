@@ -1,6 +1,5 @@
-from __future__ import annotations
-
 import os
+import shutil
 import stat
 import uuid
 from collections.abc import AsyncIterator, Iterator
@@ -9,9 +8,10 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 
-from herdr_client import AsyncHerdrClient, HerdrClient
+from herdr_client import AsyncHerdrClient, HerdrClient, HerdrClientError
 
 from .support import (
+    OPENCODE_TEST_MODEL,
     LiveWorkspace,
     assert_result_type,
     assert_workspace_scope,
@@ -20,39 +20,20 @@ from .support import (
 )
 
 
-def pytest_addoption(parser: pytest.Parser) -> None:
-    parser.addoption(
-        "--run-integration",
-        action="store_true",
-        default=False,
-        help="run tests that connect to a live Herdr socket",
-    )
-
-
-def pytest_collection_modifyitems(
-    config: pytest.Config,
-    items: list[pytest.Item],
-) -> None:
-    if config.getoption("--run-integration"):
-        return
-    skip = pytest.mark.skip(reason="pass --run-integration to run live Herdr tests")
-    for item in items:
-        if "integration" in item.keywords:
-            item.add_marker(skip)
-
-
 @pytest.fixture(scope="session")
-def integration_socket(request: pytest.FixtureRequest) -> Path:
+def integration_socket() -> Path:
     raw_path = os.environ.get("HERDR_INTEGRATION_SOCKET")
     if not raw_path:
-        if request.config.getoption("--run-integration"):
-            pytest.fail("--run-integration requires HERDR_INTEGRATION_SOCKET")
         pytest.skip("HERDR_INTEGRATION_SOCKET is not configured")
     socket_path = Path(raw_path).expanduser()
     if not socket_path.exists():
-        pytest.fail(f"Herdr integration socket does not exist: {socket_path}")
+        pytest.skip(f"Herdr integration socket does not exist: {socket_path}")
     if not stat.S_ISSOCK(socket_path.stat().st_mode):
-        pytest.fail(f"Herdr integration path is not a Unix socket: {socket_path}")
+        pytest.skip(f"Herdr integration path is not a Unix socket: {socket_path}")
+    try:
+        HerdrClient(socket_path=socket_path, timeout=5.0).ping()
+    except HerdrClientError as exc:
+        pytest.skip(f"Herdr integration server is unavailable: {exc}")
     return socket_path
 
 
@@ -69,6 +50,23 @@ def sync_client(integration_socket: Path) -> HerdrClient:
 @pytest_asyncio.fixture(scope="session")
 async def async_client(integration_socket: Path) -> AsyncHerdrClient:
     return AsyncHerdrClient(socket_path=integration_socket, timeout=5.0)
+
+
+@pytest.fixture(scope="session")
+def opencode_test_model() -> str:
+    if shutil.which("opencode") is None:
+        pytest.skip("local opencode executable is not available")
+    return OPENCODE_TEST_MODEL
+
+
+@pytest.fixture(scope="session")
+def agent_client(integration_socket: Path) -> HerdrClient:
+    return HerdrClient(socket_path=integration_socket, timeout=125.0)
+
+
+@pytest_asyncio.fixture(scope="session")
+async def async_agent_client(integration_socket: Path) -> AsyncHerdrClient:
+    return AsyncHerdrClient(socket_path=integration_socket, timeout=125.0)
 
 
 def _workspace_from_created(

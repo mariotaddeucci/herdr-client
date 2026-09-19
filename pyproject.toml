@@ -46,6 +46,7 @@ pythonpath = ["src"]
 testpaths = ["tests"]
 markers = [
   "integration: tests that require an explicitly configured live Herdr socket",
+  "agent_integration: opt-in tests that start a local OpenCode agent through Herdr",
 ]
 
 [tool.ruff]

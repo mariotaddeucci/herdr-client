@@ -6,6 +6,8 @@ from pathlib import Path
 
 from herdr_client import CANONICAL_METHODS, SPECIAL_METHODS, JSONValue
 
+OPENCODE_TEST_MODEL = "opencode/big-pickle"
+
 
 @dataclass(frozen=True, slots=True)
 class LiveWorkspace:

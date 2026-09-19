@@ -209,10 +209,25 @@ HERDR_INTEGRATION_SOCKET="$HOME/.config/herdr/sessions/pytest/herdr.sock" \
   uv run pytest --run-integration -m integration --no-cov
 ```
 
+Se o socket não estiver configurado, não existir ou não responder ao `ping`, as
+fixtures marcam os testes live como `skipped` em vez de falhar a suíte.
+
 As fixtures criam workspaces, tabs, panes e repositórios Git temporários dentro do
 diretório da sessão do pytest e removem somente os recursos que criaram. Os comandos
 enviados aos panes são limitados a `printf`, `pwd` e `true`; métodos de agentes,
-integrações, plugins executáveis e operações globais ficam fora dessa fase.
+integrações, plugins executáveis e operações globais ficam fora da fase geral.
+
+O fluxo de agente é uma fase opt-in separada. Ele exige o executável local `opencode` e
+usa somente o modelo gratuito `opencode/big-pickle`:
+
+```bash
+HERDR_INTEGRATION_SOCKET="$HOME/.config/herdr/sessions/pytest/herdr.sock" \
+  uv run pytest --run-integration --run-agent-integration -m agent_integration --no-cov
+```
+
+Execute esse comando dentro de um contexto Herdr autorizado. O teste cria um workspace
+isolado, inicia o OpenCode por `agent.start`, valida `agent.list`, `agent.get`,
+`agent.read`, `agent.prompt` e `agent.wait`, e fecha o workspace ao terminar.
 
 ## Licença
 
