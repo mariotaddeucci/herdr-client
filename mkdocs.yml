@@ -65,6 +65,9 @@ markdown_extensions:
   - md_in_html
   - pymdownx.highlight
   - pymdownx.inlinehilite
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
   - pymdownx.superfences
   - pymdownx.tabbed:
       alternate_style: true
@@ -98,6 +101,7 @@ nav:
       - Raw requests: guides/raw-requests.md
       - Errors and timeouts: guides/errors.md
   - Reference:
+      - API overview: reference/index.md
       - Client API: reference/clients.md
       - Subscriptions: reference/subscriptions.md
       - Types: reference/types.md

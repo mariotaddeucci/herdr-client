@@ -136,6 +136,18 @@ class HerdrClient(SyncMethodStubs):
         timeout: float = 5.0,
         session: str | None = None,
     ) -> None:
+        """Create a synchronous client for a Herdr Unix socket.
+
+        Args:
+            socket_path: Explicit socket path. When omitted, use Herdr's standard
+                socket resolution order.
+            timeout: Timeout in seconds for connect, write and read operations.
+            session: Named Herdr session to resolve instead of ``socket_path``.
+
+        Raises:
+            ValueError: If both ``socket_path`` and ``session`` are provided, or if
+                ``timeout`` is not positive.
+        """
         if socket_path is not None and session is not None:
             raise ValueError("socket_path and session are mutually exclusive")
         if timeout <= 0:
@@ -215,7 +227,31 @@ class HerdrClient(SyncMethodStubs):
     ) -> JsonDict: ...
 
     def request(self, method: str, params: object | None = None) -> ResponseResult:
-        """Call a canonical herdr socket method and return its result."""
+        """Call a canonical Herdr socket method and return its result.
+
+        Use the convenience methods when one exists. This low-level operation is
+        useful for canonical protocol methods that do not yet have a wrapper.
+
+        Args:
+            method: Canonical JSON method name, such as ``"pane.read"``.
+            params: JSON object containing method parameters, or ``None`` for an
+                empty parameter object.
+
+        Returns:
+            The validated result object returned by Herdr.
+
+        Raises:
+            HerdrClientError: If the method is unsupported or the socket exchange
+                fails.
+            TypeError: If ``params`` is not a mapping.
+            HerdrApiError: If Herdr returns an error envelope.
+
+        Example:
+            ```python
+            client.request("workspace.list")
+            client.request("pane.read", {"pane_id": "build"})
+            ```
+        """
         if method not in CANONICAL_METHODS:
             raise HerdrClientError(f"unsupported herdr socket method: {method}")
 
@@ -242,28 +278,74 @@ class HerdrClient(SyncMethodStubs):
             connection.close()
 
     def ping(self) -> PongResult:
+        """Check that the Herdr socket is reachable.
+
+        Returns:
+            The server's pong result.
+        """
         return self.request("ping")
 
     def workspace_list(self) -> WorkspaceListResult:
+        """List workspaces visible to the Herdr session.
+
+        Returns:
+            A schema-derived workspace list result.
+        """
         return self.request("workspace.list")
 
     def tab_list(self, workspace_id: str | None = None) -> TabListResult:
+        """List tabs, optionally limited to one workspace.
+
+        Args:
+            workspace_id: Workspace identifier to filter by, or ``None`` for all
+                workspaces.
+
+        Returns:
+            A schema-derived tab list result.
+        """
         params: TabListParams = {}
         if workspace_id is not None:
             params["workspace_id"] = workspace_id
         return self.request("tab.list", params)
 
     def pane_list(self, workspace_id: str | None = None) -> PaneListResult:
+        """List panes, optionally limited to one workspace.
+
+        Args:
+            workspace_id: Workspace identifier to filter by, or ``None`` for all
+                workspaces.
+
+        Returns:
+            A schema-derived pane list result.
+        """
         params: PaneListParams = {}
         if workspace_id is not None:
             params["workspace_id"] = workspace_id
         return self.request("pane.list", params)
 
     def pane_send_text(self, pane_id: str, text: str) -> OkResult:
+        """Send literal text to a pane.
+
+        Args:
+            pane_id: Target pane identifier.
+            text: Text to write to the pane.
+
+        Returns:
+            The server's successful command result.
+        """
         params: PaneSendTextParams = {"pane_id": pane_id, "text": text}
         return self.request("pane.send_text", params)
 
     def pane_send_keys(self, pane_id: str, keys: Sequence[str]) -> OkResult:
+        """Send named key presses to a pane.
+
+        Args:
+            pane_id: Target pane identifier.
+            keys: Key names in the order they should be sent.
+
+        Returns:
+            The server's successful command result.
+        """
         params: PaneSendKeysParams = {"pane_id": pane_id, "keys": list(keys)}
         return self.request("pane.send_keys", params)
 
@@ -273,6 +355,16 @@ class HerdrClient(SyncMethodStubs):
         text: str = "",
         keys: Sequence[str] | None = None,
     ) -> OkResult:
+        """Send text and key presses in one pane input operation.
+
+        Args:
+            pane_id: Target pane identifier.
+            text: Literal text to write before sending keys.
+            keys: Optional key names in the order they should be sent.
+
+        Returns:
+            The server's successful command result.
+        """
         params: PaneSendInputParams = {
             "pane_id": pane_id,
             "text": text,
@@ -288,6 +380,18 @@ class HerdrClient(SyncMethodStubs):
         strip_ansi: bool = True,
         format: ReadFormat | None = None,
     ) -> PaneReadResponse:
+        """Read captured output from a pane.
+
+        Args:
+            pane_id: Target pane identifier.
+            source: Output source, such as ``"recent"`` or ``"visible"``.
+            lines: Maximum number of lines to return, or ``None`` for no limit.
+            strip_ansi: Remove ANSI escape sequences when true.
+            format: Optional response format, ``"text"`` or ``"ansi"``.
+
+        Returns:
+            A typed pane read response containing the requested output.
+        """
         params: PaneReadParams = {
             "pane_id": pane_id,
             "source": source,
@@ -308,6 +412,19 @@ class HerdrClient(SyncMethodStubs):
         timeout_ms: int | None = None,
         strip_ansi: bool = True,
     ) -> OutputMatchedResult:
+        """Wait until pane output satisfies a match expression.
+
+        Args:
+            pane_id: Target pane identifier.
+            match: Schema-defined text or pattern match object.
+            source: Output source to inspect.
+            lines: Optional maximum number of lines to inspect.
+            timeout_ms: Server-side wait timeout in milliseconds.
+            strip_ansi: Remove ANSI escape sequences before matching.
+
+        Returns:
+            The matched output and match metadata.
+        """
         params: PaneWaitForOutputParams = {
             "pane_id": pane_id,
             "source": source,
@@ -321,7 +438,22 @@ class HerdrClient(SyncMethodStubs):
         return self.request("pane.wait_for_output", params)
 
     def subscribe(self, subscriptions: Iterable[EventSubscription]) -> Subscription:
-        """Create a context manager for pushed herdr events."""
+        """Create a context manager for pushed Herdr events.
+
+        Args:
+            subscriptions: Event filters to register with the server.
+
+        Returns:
+            A subscription context manager. Enter it before iterating over
+            ``events()``.
+
+        Example:
+            ```python
+            with client.subscribe([{"event": "pane.output"}]) as stream:
+                for event in stream.events():
+                    print(event)
+            ```
+        """
         return Subscription(self.socket_path, self.timeout, subscriptions)
 
 

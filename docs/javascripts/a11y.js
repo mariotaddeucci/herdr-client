@@ -3,6 +3,10 @@ function labelSearchDialogs() {
     "landing-home",
     Boolean(document.querySelector(".landing-page")),
   );
+  document.body.classList.toggle(
+    "api-page",
+    window.location.pathname.includes("/reference/"),
+  );
 
   document.querySelectorAll('.md-search[role="dialog"]').forEach((dialog) => {
     if (!dialog.hasAttribute("aria-label")) {

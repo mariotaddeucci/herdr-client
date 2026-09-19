@@ -42,6 +42,17 @@
   color: #9841a8;
 }
 
+body.api-page {
+  --md-default-bg-color: #15191f;
+  --md-default-fg-color: #d8dee8;
+  --md-default-fg-color--light: #aab4c1;
+  --md-default-fg-color--lighter: #7f8a98;
+  --md-default-fg-color--lightest: #303945;
+  --md-typeset-a-color: #35c5e3;
+  --md-code-bg-color: #1d232c;
+  --md-code-fg-color: #e2e8f0;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -61,6 +72,23 @@ pre,
 .md-header {
   background: color-mix(in srgb, var(--md-primary-fg-color) 94%, transparent);
   box-shadow: 0 1px 0 color-mix(in srgb, var(--md-accent-fg-color) 18%, transparent);
+}
+
+body.api-page .md-header,
+body.api-page .md-tabs {
+  background: #292b2f;
+}
+
+body.api-page .md-header {
+  box-shadow: 0 1px 0 #3b3e44;
+}
+
+body.api-page .md-sidebar--primary {
+  background: #101215;
+}
+
+body.api-page .md-sidebar--secondary {
+  background: #15191f;
 }
 
 .md-header__inner {
@@ -165,6 +193,102 @@ pre,
 .md-typeset .md-button:not(.md-button--primary) {
   border-color: color-mix(in srgb, var(--md-accent-fg-color) 56%, var(--md-default-fg-color));
   color: var(--md-typeset-a-color);
+}
+
+body.api-page .md-typeset h1 {
+  font-size: clamp(2.2rem, 4vw, 3.2rem);
+  font-weight: 750;
+  letter-spacing: -0.04em;
+}
+
+body.api-page .md-typeset h2 {
+  border-bottom: 1px solid var(--md-default-fg-color--lightest);
+  font-size: clamp(1.55rem, 2.5vw, 2rem);
+  margin-top: 3.4rem;
+  padding-bottom: 0.55rem;
+}
+
+body.api-page .md-typeset h3.doc-heading {
+  color: var(--md-default-fg-color);
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin-top: 2.25rem;
+}
+
+body.api-page .doc.doc-object {
+  margin: 2.5rem 0;
+}
+
+body.api-page .doc-signature,
+body.api-page .doc-overloads {
+  background: #1d232c;
+  border: 1px solid #353f4c;
+  border-radius: 0.45rem;
+  box-shadow: none;
+}
+
+body.api-page .doc-signature {
+  margin: 0.75rem 0 1rem;
+  padding: 1rem 1.1rem;
+}
+
+body.api-page .doc-overloads {
+  margin: 0.75rem 0;
+  padding: 0.2rem 1.1rem;
+}
+
+body.api-page .doc-contents > p:first-child {
+  font-size: 1.05rem;
+}
+
+body.api-page .doc-contents .field-list {
+  border-left: 3px solid #35c5e3;
+  margin: 1rem 0 1.5rem;
+  padding: 0.8rem 1rem;
+}
+
+body.api-page .doc-contents .field-list dt {
+  color: var(--md-default-fg-color);
+  font-weight: 700;
+}
+
+body.api-page .doc-contents .field-list dd {
+  margin-left: 0;
+}
+
+body.api-page .md-typeset table:not([class]) {
+  background: #1b2027;
+  border-color: #353f4c;
+}
+
+body.api-page .md-typeset table:not([class]) th {
+  background: #29313c;
+  color: var(--md-default-fg-color);
+}
+
+body.api-page .highlight .kn,
+body.api-page .highlight .k {
+  color: #8fc7ff;
+}
+
+body.api-page .highlight .nn,
+body.api-page .highlight .nf {
+  color: #f0b6f2;
+}
+
+body.api-page .highlight .s2 {
+  color: #75e0a6;
+}
+
+body.api-page .highlight .mf,
+body.api-page .highlight .mi {
+  color: #ff9b9b;
+}
+
+body.api-page .highlight .nb {
+  color: #b8a9ff;
 }
 
 .md-main__inner {
