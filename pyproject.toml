@@ -3,7 +3,7 @@ requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "herdr-python-client"
+name = "herdr-client"
 version = "0.2.0"
 description = "Sync and async Python clients for the herdr Unix socket API"
 readme = "README.md"
@@ -21,6 +21,11 @@ classifiers = [
 ]
 dependencies = []
 
+[project.urls]
+Homepage = "https://github.com/mariotaddeucci/herdr-client"
+Repository = "https://github.com/mariotaddeucci/herdr-client"
+Issues = "https://github.com/mariotaddeucci/herdr-client/issues"
+
 [dependency-groups]
 dev = [
   "pyrefly>=0.18.0",
@@ -33,6 +38,9 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/herdr_client"]
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/README.md", "/LICENSE", "/pyproject.toml"]
 
 [tool.pytest.ini_options]
 addopts = [

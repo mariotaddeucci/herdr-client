@@ -1,4 +1,4 @@
-# herdr-python-client
+# herdr-client
 
 Clientes Python síncrono e assíncrono para a API de Unix socket do
 [herdr](https://github.com/ogulcancelik/herdr). O pacote implementa o protocolo canônico
@@ -11,6 +11,20 @@ newline-delimited JSON sem dependências de runtime.
 - Uma instância do herdr expondo o Unix socket
 
 ## Instalação
+
+Para usar a versão publicada:
+
+```bash
+python -m pip install herdr-client
+```
+
+Ou com `uv`:
+
+```bash
+uv add herdr-client
+```
+
+Para desenvolvimento, instale o ambiente do repositório:
 
 ```bash
 uv sync
@@ -228,6 +242,17 @@ HERDR_INTEGRATION_SOCKET="$HOME/.config/herdr/sessions/pytest/herdr.sock" \
 Execute esse comando dentro de um contexto Herdr autorizado. O teste cria um workspace
 isolado, inicia o OpenCode por `agent.start`, valida `agent.list`, `agent.get`,
 `agent.read`, `agent.prompt` e `agent.wait`, e fecha o workspace ao terminar.
+
+### Publicação
+
+O workflow de publicação roda somente para tags que começam com `v` e exige que a tag
+corresponda à versão em `pyproject.toml`. Depois de configurar o Trusted Publisher do
+projeto `herdr-client` no PyPI e o ambiente `pypi` no GitHub, publique uma versão com:
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
 
 ## Licença
 
