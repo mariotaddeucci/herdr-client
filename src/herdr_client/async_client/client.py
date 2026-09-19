@@ -4,19 +4,21 @@ import asyncio
 from collections.abc import AsyncIterator, Iterable, Mapping, Sequence
 from contextlib import suppress
 from pathlib import Path
-from types import TracebackType
-from typing import Literal, cast, overload
+from typing import TYPE_CHECKING, Literal, Self, cast, overload
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 from ..exceptions import HerdrClientError
 from ..protocol import (
     CANONICAL_METHODS,
     JsonDict,
-    _decode_json,
-    _encode_envelope,
-    _event_envelope,
-    _new_id,
-    _response_result,
-    _subscription_ack,
+    decode_json,
+    encode_envelope,
+    event_envelope,
+    new_id,
+    response_result,
+    subscription_ack,
 )
 from ..stub_methods import AsyncMethodStubs
 from ..transport import resolve_socket_path
@@ -49,7 +51,7 @@ from ..types import (
 )
 
 
-async def _close_writer(writer: asyncio.StreamWriter) -> None:
+async def close_writer(writer: asyncio.StreamWriter) -> None:
     writer.close()
     with suppress(ConnectionError, OSError):
         await writer.wait_closed()
@@ -78,23 +80,25 @@ class AsyncSubscription:
             raise RuntimeError("subscription has not been opened")
         return self._ack
 
-    async def __aenter__(self) -> AsyncSubscription:
+    async def __aenter__(self) -> Self:
         if self._writer is not None:
             raise RuntimeError("subscription is already open")
 
-        self._reader, self._writer = await _connect(self._socket_path, self._timeout)
+        self._reader, self._writer = await connect_socket(
+            self._socket_path, self._timeout
+        )
         try:
-            await _send_envelope(
+            await send_envelope(
                 self._writer,
                 self._timeout,
                 {
-                    "id": _new_id(),
+                    "id": new_id(),
                     "method": "events.subscribe",
-                    "params": {"subscriptions": cast(JSONValue, self._subscriptions)},
+                    "params": {"subscriptions": cast("JSONValue", self._subscriptions)},
                 },
             )
-            response = await _read_json_line(self._reader, self._timeout)
-            self._ack = _subscription_ack(response)
+            response = await read_json_line(self._reader, self._timeout)
+            self._ack = subscription_ack(response)
             return self
         except BaseException:
             await self.aclose()
@@ -113,7 +117,7 @@ class AsyncSubscription:
         writer, self._writer = self._writer, None
         self._reader = None
         if writer is not None:
-            await _close_writer(writer)
+            await close_writer(writer)
 
     async def events(self) -> AsyncIterator[EventEnvelope]:
         """Yield pushed event payloads until the server closes the socket."""
@@ -122,12 +126,12 @@ class AsyncSubscription:
             raise RuntimeError("subscription has not been opened")
 
         while True:
-            line = await _readline(reader, self._timeout)
+            line = await read_line(reader, self._timeout)
             if line == b"":
                 return
             if line.strip() == b"":
                 continue
-            yield _event_envelope(_decode_json(line))
+            yield event_envelope(decode_json(line))
 
 
 class AsyncHerdrClient(AsyncMethodStubs):
@@ -218,30 +222,33 @@ class AsyncHerdrClient(AsyncMethodStubs):
     ) -> JsonDict: ...
 
     async def request(
-        self, method: str, params: Mapping[str, object] | None = None
+        self, method: str, params: object | None = None
     ) -> ResponseResult:
         """Call a canonical herdr socket method and return its result."""
         if method not in CANONICAL_METHODS:
             raise HerdrClientError(f"unsupported herdr socket method: {method}")
 
-        reader, writer = await _connect(self.socket_path, self.timeout)
+        reader, writer = await connect_socket(self.socket_path, self.timeout)
         try:
-            await _send_envelope(
+            if params is None:
+                request_params: Mapping[str, JSONValue] = {}
+            elif isinstance(params, Mapping):
+                request_params = cast("Mapping[str, JSONValue]", params)
+            else:
+                raise TypeError("herdr request params must be a mapping")
+            await send_envelope(
                 writer,
                 self.timeout,
                 {
-                    "id": _new_id(),
+                    "id": new_id(),
                     "method": method,
-                    "params": cast(
-                        Mapping[str, JSONValue],
-                        params if params is not None else {},
-                    ),
+                    "params": request_params,
                 },
             )
-            response = await _read_json_line(reader, self.timeout)
-            return _response_result(response)
+            response = await read_json_line(reader, self.timeout)
+            return response_result(response)
         finally:
-            await _close_writer(writer)
+            await close_writer(writer)
 
     async def ping(self) -> PongResult:
         return await self.request("ping")
@@ -329,7 +336,7 @@ class AsyncHerdrClient(AsyncMethodStubs):
         return AsyncSubscription(self.socket_path, self.timeout, subscriptions)
 
 
-async def _connect(
+async def connect_socket(
     socket_path: Path,
     timeout_seconds: float,
 ) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
@@ -346,13 +353,13 @@ async def _connect(
         ) from exc
 
 
-async def _send_envelope(
+async def send_envelope(
     writer: asyncio.StreamWriter,
     timeout_seconds: float,
     envelope: Mapping[str, JSONValue],
 ) -> None:
     try:
-        writer.write(_encode_envelope(envelope))
+        writer.write(encode_envelope(envelope))
         async with asyncio.timeout(timeout_seconds):
             await writer.drain()
     except TimeoutError as exc:
@@ -361,19 +368,19 @@ async def _send_envelope(
         raise HerdrClientError("could not write to herdr socket") from exc
 
 
-async def _read_json_line(
+async def read_json_line(
     reader: asyncio.StreamReader, timeout_seconds: float
 ) -> JsonDict:
-    line = await _readline(reader, timeout_seconds)
+    line = await read_line(reader, timeout_seconds)
     if line == b"":
         raise HerdrClientError("herdr socket closed before a response was received")
-    response = _decode_json(line)
+    response = decode_json(line)
     if not isinstance(response, dict):
         raise HerdrClientError("herdr response must be a JSON object")
-    return cast(JsonDict, response)
+    return cast("JsonDict", response)
 
 
-async def _readline(reader: asyncio.StreamReader, timeout_seconds: float) -> bytes:
+async def read_line(reader: asyncio.StreamReader, timeout_seconds: float) -> bytes:
     try:
         async with asyncio.timeout(timeout_seconds):
             return await reader.readline()

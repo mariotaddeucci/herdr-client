@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import get_args
+from typing import cast, get_args
 
 import pytest
 
@@ -17,7 +17,7 @@ from herdr_client.protocol import (
     SCHEMA_PROTOCOL,
     SCHEMA_VERSION,
     SPECIAL_METHODS,
-    _response_result,
+    response_result,
 )
 from herdr_client.schema import (
     OFFICIAL_SCHEMA_PROTOCOL,
@@ -27,18 +27,25 @@ from herdr_client.schema import (
 )
 from herdr_client.stub_methods import STUB_METHODS
 
+EXPECTED_METHOD_COUNT = 103
+EXPECTED_NOT_IMPLEMENTED_COUNT = 93
+EXPECTED_CONVENIENCE_COUNT = 10
+EXPECTED_SCHEMA_PROTOCOL = 22
+EXPECTED_SCHEMA_VERSION = 1
+EXPECTED_SHA256_LENGTH = 64
+
 
 def test_method_registry_matches_the_official_schema_surface() -> None:
-    assert SCHEMA_PROTOCOL == 22
-    assert SCHEMA_VERSION == 1
-    assert len(METHOD_SCHEMAS) == 103
+    assert SCHEMA_PROTOCOL == EXPECTED_SCHEMA_PROTOCOL
+    assert SCHEMA_VERSION == EXPECTED_SCHEMA_VERSION
+    assert len(METHOD_SCHEMAS) == EXPECTED_METHOD_COUNT
     assert CANONICAL_METHODS == frozenset(METHOD_SCHEMAS)
-    assert len(NOT_IMPLEMENTED_METHODS) == 93
+    assert len(NOT_IMPLEMENTED_METHODS) == EXPECTED_NOT_IMPLEMENTED_COUNT
     assert "agent.send" not in CANONICAL_METHODS
     assert "agent.send_keys" in CANONICAL_METHODS
     assert "pane.graphics.stream" not in CANONICAL_METHODS
     assert SPECIAL_METHODS == {"pane.graphics.stream"}
-    assert len(CONVENIENCE_METHODS) == 10
+    assert len(CONVENIENCE_METHODS) == EXPECTED_CONVENIENCE_COUNT
 
 
 def test_schema_metadata_contains_required_and_optional_fields() -> None:
@@ -55,12 +62,18 @@ def test_schema_metadata_contains_required_and_optional_fields() -> None:
 def test_official_schema_identity_is_pinned() -> None:
     assert OFFICIAL_SCHEMA_PROTOCOL == SCHEMA_PROTOCOL
     assert OFFICIAL_SCHEMA_VERSION == SCHEMA_VERSION
-    assert len(OFFICIAL_SCHEMA_SHA256) == 64
-    assert re.search(r"/[0-9a-f]{40}/", OFFICIAL_SCHEMA_URL)
+    assert len(OFFICIAL_SCHEMA_SHA256) == EXPECTED_SHA256_LENGTH
+    assert re.search(r"/[0-9a-f]{40}/", OFFICIAL_SCHEMA_URL) is not None
 
     schema_path = Path(__file__).parents[1] / "schema/herdr-api.schema.json"
-    schema = json.loads(schema_path.read_text())
-    assert len(schema["schemas"]["request"]["oneOf"]) == len(METHOD_SCHEMAS)
+    schema = cast(dict[str, object], json.loads(schema_path.read_text()))
+    schemas = schema.get("schemas")
+    assert isinstance(schemas, dict)
+    request_schema = schemas.get("request")
+    assert isinstance(request_schema, dict)
+    request_variants = request_schema.get("oneOf")
+    assert isinstance(request_variants, list)
+    assert len(request_variants) == len(METHOD_SCHEMAS)
     assert len(get_args(RequestMethod.__value__)) == len(METHOD_SCHEMAS)
 
 
@@ -101,9 +114,9 @@ def test_unknown_method_is_still_a_client_error(tmp_path: Path) -> None:
     client = HerdrClient(socket_path=tmp_path / "not-used-herdr.sock")
 
     with pytest.raises(HerdrClientError, match="unsupported herdr socket method"):
-        client.request("not.a.real.method")
+        assert client.request("not.a.real.method") is not None
 
 
 def test_response_result_requires_a_result_discriminator() -> None:
     with pytest.raises(HerdrClientError, match="missing its type"):
-        _response_result({"id": "req_1", "result": {}})
+        assert response_result({"id": "req_1", "result": {}}) is not None

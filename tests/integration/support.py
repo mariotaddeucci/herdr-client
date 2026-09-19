@@ -28,7 +28,7 @@ class RequestCase:
 
 
 def required_string(value: object, field: str) -> str:
-    if not isinstance(value, str) or not value:
+    if not isinstance(value, str) or value == "":
         raise AssertionError(f"expected non-empty string field {field!r}: {value!r}")
     return value
 
@@ -58,6 +58,11 @@ def safe_command(token: str) -> str:
     return f"printf '%s\\n' {token}"
 
 
+def empty_params(workspace: LiveWorkspace) -> Mapping[str, JSONValue]:
+    del workspace
+    return {}
+
+
 def read_only_cases() -> tuple[RequestCase, ...]:
     return (
         RequestCase(
@@ -65,7 +70,7 @@ def read_only_cases() -> tuple[RequestCase, ...]:
             "workspace_info",
             lambda workspace: {"workspace_id": workspace.workspace_id},
         ),
-        RequestCase("tab.list", "tab_list", lambda _workspace: {}),
+        RequestCase("tab.list", "tab_list", empty_params),
         RequestCase(
             "tab.list",
             "tab_list",
@@ -76,7 +81,7 @@ def read_only_cases() -> tuple[RequestCase, ...]:
             "tab_info",
             lambda workspace: {"tab_id": workspace.tab_id},
         ),
-        RequestCase("pane.list", "pane_list", lambda _workspace: {}),
+        RequestCase("pane.list", "pane_list", empty_params),
         RequestCase(
             "pane.list",
             "pane_list",
@@ -87,25 +92,25 @@ def read_only_cases() -> tuple[RequestCase, ...]:
             "pane_info",
             lambda workspace: {"pane_id": workspace.pane_id},
         ),
-        RequestCase("pane.current", "pane_current", lambda _workspace: {}),
+        RequestCase("pane.current", "pane_current", empty_params),
         RequestCase(
             "pane.current",
             "pane_current",
             lambda workspace: {"caller_pane_id": workspace.pane_id},
         ),
-        RequestCase("pane.process_info", "pane_process_info", lambda _workspace: {}),
+        RequestCase("pane.process_info", "pane_process_info", empty_params),
         RequestCase(
             "pane.process_info",
             "pane_process_info",
             lambda workspace: {"pane_id": workspace.pane_id},
         ),
-        RequestCase("pane.layout", "pane_layout", lambda _workspace: {}),
+        RequestCase("pane.layout", "pane_layout", empty_params),
         RequestCase(
             "pane.layout",
             "pane_layout",
             lambda workspace: {"pane_id": workspace.pane_id},
         ),
-        RequestCase("layout.export", "layout_export", lambda _workspace: {}),
+        RequestCase("layout.export", "layout_export", empty_params),
         RequestCase(
             "layout.export",
             "layout_export",
@@ -140,19 +145,11 @@ def read_only_cases() -> tuple[RequestCase, ...]:
                 "cursor": {"row": 0, "col": 1},
             },
         ),
-        RequestCase("worktree.list", "worktree_list", lambda _workspace: {}),
-        RequestCase(
-            "integration.list",
-            "integration_list",
-            lambda _workspace: {},
-        ),
-        RequestCase("plugin.list", "plugin_list", lambda _workspace: {}),
-        RequestCase(
-            "plugin.action.list",
-            "plugin_action_list",
-            lambda _workspace: {},
-        ),
-        RequestCase("plugin.log.list", "plugin_log_list", lambda _workspace: {}),
+        RequestCase("worktree.list", "worktree_list", empty_params),
+        RequestCase("integration.list", "integration_list", empty_params),
+        RequestCase("plugin.list", "plugin_list", empty_params),
+        RequestCase("plugin.action.list", "plugin_action_list", empty_params),
+        RequestCase("plugin.log.list", "plugin_log_list", empty_params),
     )
 
 

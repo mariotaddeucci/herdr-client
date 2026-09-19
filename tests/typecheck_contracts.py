@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import assert_type
+from typing import TYPE_CHECKING, assert_type
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
 from herdr_client import (
     AsyncClientProtocol,

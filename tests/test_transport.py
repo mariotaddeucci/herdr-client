@@ -66,11 +66,14 @@ def test_resolve_socket_path_prefers_session_argument(
 
 def test_resolve_socket_path_raises_when_no_candidate_exists(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
-        resolve_socket_path(
-            candidates=[tmp_path / "missing-a.sock", tmp_path / "missing-b.sock"]
+        assert (
+            resolve_socket_path(
+                candidates=[tmp_path / "missing-a.sock", tmp_path / "missing-b.sock"]
+            )
+            is not None
         )
 
 
 def test_empty_session_is_rejected() -> None:
     with pytest.raises(ValueError, match="session must not be empty"):
-        DEFAULT_SOCKET_CANDIDATES(session="")
+        assert DEFAULT_SOCKET_CANDIDATES(session="") is not None

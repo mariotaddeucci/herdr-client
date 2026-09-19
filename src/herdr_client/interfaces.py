@@ -2,28 +2,30 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Iterable, Iterator, Mapping, Sequence
-from pathlib import Path
-from types import TracebackType
-from typing import Protocol, Self
+from typing import TYPE_CHECKING, Protocol, Self
 
-from .types import (
-    EventEnvelope,
-    EventSubscription,
-    JsonObject,
-    JSONValue,
-    OkResult,
-    OutputMatch,
-    OutputMatchedResult,
-    PaneListResult,
-    PaneReadResponse,
-    PongResult,
-    ReadFormat,
-    ReadSource,
-    SubscriptionAck,
-    TabListResult,
-    WorkspaceListResult,
-)
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Iterable, Iterator, Mapping, Sequence
+    from pathlib import Path
+    from types import TracebackType
+
+    from .types import (
+        EventEnvelope,
+        EventSubscription,
+        JsonObject,
+        JSONValue,
+        OkResult,
+        OutputMatch,
+        OutputMatchedResult,
+        PaneListResult,
+        PaneReadResponse,
+        PongResult,
+        ReadFormat,
+        ReadSource,
+        SubscriptionAck,
+        TabListResult,
+        WorkspaceListResult,
+    )
 
 
 class SubscriptionProtocol(Protocol):

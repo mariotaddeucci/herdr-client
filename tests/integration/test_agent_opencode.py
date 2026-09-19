@@ -12,6 +12,7 @@ from herdr_client import (
     AsyncHerdrClient,
     HerdrClient,
     HerdrClientError,
+    JSONValue,
 )
 
 from .support import (
@@ -24,7 +25,7 @@ from .support import (
 pytestmark = [pytest.mark.integration, pytest.mark.agent_integration]
 
 
-def _assert_agent(
+def assert_agent(
     result: Mapping[str, object],
     workspace: LiveWorkspace,
     name: str,
@@ -45,7 +46,7 @@ def _assert_agent(
     return agent
 
 
-def _assert_agent_list(
+def assert_agent_list(
     result: Mapping[str, object],
     workspace: LiveWorkspace,
     name: str,
@@ -61,7 +62,7 @@ def _assert_agent_list(
     )
 
 
-def _assert_agent_read(
+def assert_agent_read(
     result: Mapping[str, object],
     workspace: LiveWorkspace,
     expected_text: str | None = None,
@@ -75,7 +76,7 @@ def _assert_agent_read(
         assert expected_text in text
 
 
-def _shell_is_ready(result: Mapping[str, object]) -> bool:
+def shell_is_ready(result: Mapping[str, object]) -> bool:
     assert_result_type(result, "pane_process_info")
     process_info = required_object(result.get("process_info"), "process_info")
     shell_pid = process_info.get("shell_pid")
@@ -85,22 +86,22 @@ def _shell_is_ready(result: Mapping[str, object]) -> bool:
         return False
     if not isinstance(foreground_processes, list) or len(foreground_processes) != 1:
         return False
-    foreground = foreground_processes[0]
+    foreground: object = foreground_processes[0]
     return isinstance(foreground, Mapping) and foreground.get("pid") == shell_pid
 
 
-def _wait_for_shell_sync(client: HerdrClient, workspace: LiveWorkspace) -> None:
+def wait_for_shell_sync(client: HerdrClient, workspace: LiveWorkspace) -> None:
     deadline = time.monotonic() + 5.0
     while True:
         result = client.request("pane.process_info", {"pane_id": workspace.pane_id})
-        if _shell_is_ready(result):
+        if shell_is_ready(result):
             return
         if time.monotonic() >= deadline:
             pytest.fail("Herdr pane did not reach a stable shell foreground")
         time.sleep(0.05)
 
 
-async def _wait_for_shell_async(
+async def wait_for_shell_async(
     client: AsyncHerdrClient,
     workspace: LiveWorkspace,
 ) -> None:
@@ -109,18 +110,18 @@ async def _wait_for_shell_async(
         result = await client.request(
             "pane.process_info", {"pane_id": workspace.pane_id}
         )
-        if _shell_is_ready(result):
+        if shell_is_ready(result):
             return
         if time.monotonic() >= deadline:
             pytest.fail("Herdr pane did not reach a stable shell foreground")
         await asyncio.sleep(0.05)
 
 
-def _start_params(
+def start_params(
     workspace: LiveWorkspace,
     name: str,
     model: str,
-) -> dict[str, object]:
+) -> dict[str, JSONValue]:
     return {
         "name": name,
         "kind": "opencode",
@@ -130,14 +131,18 @@ def _start_params(
     }
 
 
-def _stop_sync_agent(client: HerdrClient, name: str) -> None:
+def stop_sync_agent(client: HerdrClient, name: str) -> None:
     with suppress(HerdrClientError):
-        client.request("agent.send_keys", {"target": name, "keys": ["ctrl+c"]})
+        result = client.request("agent.send_keys", {"target": name, "keys": ["ctrl+c"]})
+        del result
 
 
-async def _stop_async_agent(client: AsyncHerdrClient, name: str) -> None:
+async def stop_async_agent(client: AsyncHerdrClient, name: str) -> None:
     with suppress(HerdrClientError):
-        await client.request("agent.send_keys", {"target": name, "keys": ["ctrl+c"]})
+        result = await client.request(
+            "agent.send_keys", {"target": name, "keys": ["ctrl+c"]}
+        )
+        del result
 
 
 def test_opencode_agent_lifecycle(
@@ -148,9 +153,9 @@ def test_opencode_agent_lifecycle(
     name = f"herdr-py-opencode-{uuid.uuid4().hex[:12]}"
     started = True
     try:
-        _wait_for_shell_sync(agent_client, live_workspace)
+        wait_for_shell_sync(agent_client, live_workspace)
         result = agent_client.request(
-            "agent.start", _start_params(live_workspace, name, opencode_test_model)
+            "agent.start", start_params(live_workspace, name, opencode_test_model)
         )
         assert_result_type(result, "agent_started")
         started_agent = required_object(result.get("agent"), "agent")
@@ -161,7 +166,7 @@ def test_opencode_agent_lifecycle(
         assert opencode_test_model == OPENCODE_TEST_MODEL
         assert opencode_test_model in argv
 
-        agent = _assert_agent(
+        agent = assert_agent(
             agent_client.request(
                 "agent.wait",
                 {
@@ -173,13 +178,14 @@ def test_opencode_agent_lifecycle(
             live_workspace,
             name,
         )
-        _assert_agent_list(agent_client.request("agent.list", {}), live_workspace, name)
-        _assert_agent(
+        assert_agent_list(agent_client.request("agent.list", {}), live_workspace, name)
+        fetched_agent = assert_agent(
             agent_client.request("agent.get", {"target": name}),
             live_workspace,
             name,
         )
-        _assert_agent_read(
+        del fetched_agent
+        assert_agent_read(
             agent_client.request(
                 "agent.read",
                 {
@@ -205,7 +211,8 @@ def test_opencode_agent_lifecycle(
             },
         )
         assert_result_type(prompted, "agent_prompted")
-        _assert_agent(prompted, live_workspace, name)
+        prompted_agent = assert_agent(prompted, live_workspace, name)
+        del prompted_agent
 
         waited = agent_client.request(
             "agent.wait",
@@ -215,9 +222,9 @@ def test_opencode_agent_lifecycle(
                 "timeout_ms": 120_000,
             },
         )
-        _assert_agent(waited, live_workspace, name)
+        agent = assert_agent(waited, live_workspace, name)
         assert agent.get("pane_id") == live_workspace.pane_id
-        _assert_agent_read(
+        assert_agent_read(
             agent_client.request(
                 "agent.read",
                 {
@@ -232,7 +239,7 @@ def test_opencode_agent_lifecycle(
         )
     finally:
         if started:
-            _stop_sync_agent(agent_client, name)
+            stop_sync_agent(agent_client, name)
 
 
 @pytest.mark.asyncio
@@ -244,10 +251,10 @@ async def test_opencode_agent_lifecycle_async(
     name = f"herdr-py-opencode-{uuid.uuid4().hex[:12]}"
     started = True
     try:
-        await _wait_for_shell_async(async_agent_client, live_workspace)
+        await wait_for_shell_async(async_agent_client, live_workspace)
         result = await async_agent_client.request(
             "agent.start",
-            _start_params(live_workspace, name, opencode_test_model),
+            start_params(live_workspace, name, opencode_test_model),
         )
         assert_result_type(result, "agent_started")
         started_agent = required_object(result.get("agent"), "agent")
@@ -258,7 +265,7 @@ async def test_opencode_agent_lifecycle_async(
         assert opencode_test_model == OPENCODE_TEST_MODEL
         assert opencode_test_model in argv
 
-        agent = _assert_agent(
+        agent = assert_agent(
             await async_agent_client.request(
                 "agent.wait",
                 {
@@ -270,17 +277,18 @@ async def test_opencode_agent_lifecycle_async(
             live_workspace,
             name,
         )
-        _assert_agent_list(
+        assert_agent_list(
             await async_agent_client.request("agent.list", {}),
             live_workspace,
             name,
         )
-        _assert_agent(
+        fetched_agent = assert_agent(
             await async_agent_client.request("agent.get", {"target": name}),
             live_workspace,
             name,
         )
-        _assert_agent_read(
+        del fetched_agent
+        assert_agent_read(
             await async_agent_client.request(
                 "agent.read",
                 {
@@ -306,7 +314,8 @@ async def test_opencode_agent_lifecycle_async(
             },
         )
         assert_result_type(prompted, "agent_prompted")
-        _assert_agent(prompted, live_workspace, name)
+        prompted_agent = assert_agent(prompted, live_workspace, name)
+        del prompted_agent
 
         waited = await async_agent_client.request(
             "agent.wait",
@@ -316,9 +325,9 @@ async def test_opencode_agent_lifecycle_async(
                 "timeout_ms": 120_000,
             },
         )
-        _assert_agent(waited, live_workspace, name)
+        agent = assert_agent(waited, live_workspace, name)
         assert agent.get("pane_id") == live_workspace.pane_id
-        _assert_agent_read(
+        assert_agent_read(
             await async_agent_client.request(
                 "agent.read",
                 {
@@ -333,4 +342,4 @@ async def test_opencode_agent_lifecycle_async(
         )
     finally:
         if started:
-            await _stop_async_agent(async_agent_client, name)
+            await stop_async_agent(async_agent_client, name)

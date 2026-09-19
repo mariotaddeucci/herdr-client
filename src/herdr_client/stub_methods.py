@@ -1,30 +1,36 @@
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
-from .protocol import NOT_IMPLEMENTED_METHODS, SPECIAL_METHODS, _not_implemented
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
+from .protocol import NOT_IMPLEMENTED_METHODS, SPECIAL_METHODS, not_implemented
 
 STUB_METHODS = NOT_IMPLEMENTED_METHODS | SPECIAL_METHODS
 
 
-def _method_name(method: str) -> str:
+def method_name(method: str) -> str:
     return method.replace(".", "_")
 
 
-def _sync_stub(method: str) -> Callable[..., NoReturn]:
-    def stub(_self: object, *_args: object, **_kwargs: object) -> NoReturn:
-        _not_implemented(method)
+def sync_stub(method: str) -> Callable[..., NoReturn]:
+    def stub(instance: object, *arguments: object, **keywords: object) -> NoReturn:
+        del instance, arguments, keywords
+        not_implemented(method)
 
-    stub.__name__ = _method_name(method)
+    stub.__name__ = method_name(method)
     return stub
 
 
-def _async_stub(method: str) -> Callable[..., Awaitable[NoReturn]]:
-    async def stub(_self: object, *_args: object, **_kwargs: object) -> NoReturn:
-        _not_implemented(method)
+def async_stub(method: str) -> Callable[..., Awaitable[NoReturn]]:
+    async def stub(
+        instance: object, *arguments: object, **keywords: object
+    ) -> NoReturn:
+        del instance, arguments, keywords
+        not_implemented(method)
 
-    stub.__name__ = _method_name(method)
+    stub.__name__ = method_name(method)
     return stub
 
 
@@ -36,6 +42,6 @@ class AsyncMethodStubs:
     """Named async placeholders for official methods without wrappers."""
 
 
-for _method in sorted(STUB_METHODS):
-    setattr(SyncMethodStubs, _method_name(_method), _sync_stub(_method))
-    setattr(AsyncMethodStubs, _method_name(_method), _async_stub(_method))
+for method in sorted(STUB_METHODS):
+    setattr(SyncMethodStubs, method_name(method), sync_stub(method))
+    setattr(AsyncMethodStubs, method_name(method), async_stub(method))

@@ -2,7 +2,7 @@ import os
 import shutil
 import stat
 import uuid
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Iterator, Mapping
 from pathlib import Path
 
 import pytest
@@ -23,7 +23,7 @@ from .support import (
 @pytest.fixture(scope="session")
 def integration_socket() -> Path:
     raw_path = os.environ.get("HERDR_INTEGRATION_SOCKET")
-    if not raw_path:
+    if raw_path is None or raw_path == "":
         pytest.skip("HERDR_INTEGRATION_SOCKET is not configured")
     socket_path = Path(raw_path).expanduser()
     if not socket_path.exists():
@@ -31,7 +31,8 @@ def integration_socket() -> Path:
     if not stat.S_ISSOCK(socket_path.stat().st_mode):
         pytest.skip(f"Herdr integration path is not a Unix socket: {socket_path}")
     try:
-        HerdrClient(socket_path=socket_path, timeout=5.0).ping()
+        ping_result = HerdrClient(socket_path=socket_path, timeout=5.0).ping()
+        del ping_result
     except HerdrClientError as exc:
         pytest.skip(f"Herdr integration server is unavailable: {exc}")
     return socket_path
@@ -69,8 +70,8 @@ async def async_agent_client(integration_socket: Path) -> AsyncHerdrClient:
     return AsyncHerdrClient(socket_path=integration_socket, timeout=125.0)
 
 
-def _workspace_from_created(
-    result: dict[str, object],
+def workspace_from_created(
+    result: Mapping[str, object],
     cwd: Path,
 ) -> LiveWorkspace:
     assert_result_type(result, "workspace_created")
@@ -106,7 +107,7 @@ def live_workspace(
             candidate_id = created_workspace.get("workspace_id")
             if isinstance(candidate_id, str):
                 workspace_id = candidate_id
-        workspace = _workspace_from_created(result, cwd)
+        workspace = workspace_from_created(result, cwd)
         yield workspace
     finally:
         if workspace_id is not None:
@@ -135,7 +136,7 @@ async def async_live_workspace(
             candidate_id = created_workspace.get("workspace_id")
             if isinstance(candidate_id, str):
                 workspace_id = candidate_id
-        workspace = _workspace_from_created(result, cwd)
+        workspace = workspace_from_created(result, cwd)
         yield workspace
     finally:
         if workspace_id is not None:

@@ -6,29 +6,47 @@ import tempfile
 import uuid
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
-from typing import Any
+from typing import NotRequired, TypedDict
 
 import pytest
 import pytest_asyncio
 
-from herdr_client import AsyncHerdrClient, HerdrApiError, HerdrClientError
+from herdr_client import (
+    AsyncHerdrClient,
+    HerdrApiError,
+    HerdrClientError,
+    JsonObject,
+)
+from herdr_client.protocol import narrow_json
 
-JsonDict = dict[str, Any]
-ResponseFactory = Callable[[JsonDict], JsonDict]
-Response = JsonDict | ResponseFactory
+ResponseFactory = Callable[[JsonObject], JsonObject]
+Response = JsonObject | ResponseFactory
+
+
+class Handler(TypedDict):
+    responses: list[Response]
+    delay: NotRequired[float]
+
+
+def decode_request(raw: bytes) -> JsonObject:
+    decoded: object = json.loads(raw)
+    value = narrow_json(decoded)
+    if not isinstance(value, dict):
+        raise AssertionError("fake server received a non-object request")
+    return value
 
 
 class FakeHerdrServer:
     def __init__(self, socket_path: Path) -> None:
         self.socket_path = socket_path
-        self.handlers: list[dict[str, Any]] = []
-        self.requests: list[JsonDict] = []
+        self.handlers: list[Handler] = []
+        self.requests: list[JsonObject] = []
         self._server: asyncio.Server | None = None
         self._connections: set[asyncio.Task[None]] = set()
 
     async def start(self) -> None:
         self._server = await asyncio.start_unix_server(
-            self._handle_connection,
+            self.handle_connection,
             path=str(self.socket_path),
         )
 
@@ -37,13 +55,14 @@ class FakeHerdrServer:
             self._server.close()
             await self._server.wait_closed()
         for task in self._connections:
-            task.cancel()
-        if self._connections:
+            cancelled = task.cancel()
+            del cancelled
+        if len(self._connections) > 0:
             await asyncio.gather(*self._connections, return_exceptions=True)
         if self.socket_path.exists():
             self.socket_path.unlink()
 
-    async def _handle_connection(
+    async def handle_connection(
         self,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
@@ -53,9 +72,9 @@ class FakeHerdrServer:
             self._connections.add(task)
         try:
             raw = await reader.readline()
-            if not raw:
+            if raw == b"":
                 return
-            request = json.loads(raw)
+            request = decode_request(raw)
             self.requests.append(request)
             handler = self.handlers.pop(0)
             await asyncio.sleep(handler.get("delay", 0.0))
@@ -281,7 +300,8 @@ async def test_request_cancellation_closes_the_connection(
     request = asyncio.create_task(client.ping())
 
     await asyncio.sleep(0.01)
-    request.cancel()
+    cancelled = request.cancel()
+    assert cancelled
 
     with pytest.raises(asyncio.CancelledError):
         await request

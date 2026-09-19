@@ -1,24 +1,27 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Iterable
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 
-def _config_dir() -> Path:
+def config_dir() -> Path:
     return Path.home() / ".config" / "herdr"
 
 
-def _session_socket_path(session: str) -> Path:
+def session_socket_path(session: str) -> Path:
     if session == "":
         raise ValueError("session must not be empty")
-    return _config_dir() / "sessions" / session / "herdr.sock"
+    return config_dir() / "sessions" / session / "herdr.sock"
 
 
 def DEFAULT_SOCKET_CANDIDATES(session: str | None = None) -> list[Path]:
     """Return socket candidates in herdr's documented precedence order."""
     if session is not None:
-        return [_session_socket_path(session)]
+        return [session_socket_path(session)]
 
     explicit = os.environ.get("HERDR_SOCKET_PATH")
     if explicit is not None and explicit != "":
@@ -26,9 +29,9 @@ def DEFAULT_SOCKET_CANDIDATES(session: str | None = None) -> list[Path]:
 
     env_session = os.environ.get("HERDR_SESSION")
     if env_session is not None and env_session != "":
-        return [_session_socket_path(env_session)]
+        return [session_socket_path(env_session)]
 
-    return [_config_dir() / "herdr.sock"]
+    return [config_dir() / "herdr.sock"]
 
 
 def resolve_socket_path(

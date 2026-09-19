@@ -3,19 +3,21 @@ from __future__ import annotations
 import socket
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from pathlib import Path
-from types import TracebackType
-from typing import BinaryIO, Literal, cast, overload
+from typing import TYPE_CHECKING, BinaryIO, Literal, Self, cast, overload
+
+if TYPE_CHECKING:
+    from types import TracebackType
 
 from ..exceptions import HerdrClientError
 from ..protocol import (
     CANONICAL_METHODS,
     JsonDict,
-    _decode_json,
-    _encode_envelope,
-    _event_envelope,
-    _new_id,
-    _response_result,
-    _subscription_ack,
+    decode_json,
+    encode_envelope,
+    event_envelope,
+    new_id,
+    response_result,
+    subscription_ack,
 )
 from ..stub_methods import SyncMethodStubs
 from ..transport import resolve_socket_path
@@ -71,23 +73,23 @@ class Subscription:
             raise RuntimeError("subscription has not been opened")
         return self._ack
 
-    def __enter__(self) -> Subscription:
+    def __enter__(self) -> Self:
         if self._socket is not None:
             raise RuntimeError("subscription is already open")
 
-        self._socket = _connect(self._socket_path, self._timeout)
+        self._socket = connect_socket(self._socket_path, self._timeout)
         try:
-            _send_envelope(
+            send_envelope(
                 self._socket,
                 {
-                    "id": _new_id(),
+                    "id": new_id(),
                     "method": "events.subscribe",
-                    "params": {"subscriptions": cast(JSONValue, self._subscriptions)},
+                    "params": {"subscriptions": cast("JSONValue", self._subscriptions)},
                 },
             )
             self._file = self._socket.makefile("rb")
-            response = _read_json_line(self._file)
-            self._ack = _subscription_ack(response)
+            response = read_json_line(self._file)
+            self._ack = subscription_ack(response)
             return self
         except BaseException:
             self.close()
@@ -117,12 +119,12 @@ class Subscription:
             raise RuntimeError("subscription has not been opened")
 
         while True:
-            line = _readline(file)
+            line = read_line(file)
             if line == b"":
                 return
             if line.strip() == b"":
                 continue
-            yield _event_envelope(_decode_json(line))
+            yield event_envelope(decode_json(line))
 
 
 class HerdrClient(SyncMethodStubs):
@@ -212,29 +214,30 @@ class HerdrClient(SyncMethodStubs):
         self, method: str, params: Mapping[str, JSONValue] | None = None
     ) -> JsonDict: ...
 
-    def request(
-        self, method: str, params: Mapping[str, object] | None = None
-    ) -> ResponseResult:
+    def request(self, method: str, params: object | None = None) -> ResponseResult:
         """Call a canonical herdr socket method and return its result."""
         if method not in CANONICAL_METHODS:
             raise HerdrClientError(f"unsupported herdr socket method: {method}")
 
-        connection = _connect(self.socket_path, self.timeout)
+        connection = connect_socket(self.socket_path, self.timeout)
         try:
-            _send_envelope(
+            if params is None:
+                request_params: Mapping[str, JSONValue] = {}
+            elif isinstance(params, Mapping):
+                request_params = cast("Mapping[str, JSONValue]", params)
+            else:
+                raise TypeError("herdr request params must be a mapping")
+            send_envelope(
                 connection,
                 {
-                    "id": _new_id(),
+                    "id": new_id(),
                     "method": method,
-                    "params": cast(
-                        Mapping[str, JSONValue],
-                        params if params is not None else {},
-                    ),
+                    "params": request_params,
                 },
             )
             with connection.makefile("rb") as file:
-                response = _read_json_line(file)
-            return _response_result(response)
+                response = read_json_line(file)
+            return response_result(response)
         finally:
             connection.close()
 
@@ -322,7 +325,7 @@ class HerdrClient(SyncMethodStubs):
         return Subscription(self.socket_path, self.timeout, subscriptions)
 
 
-def _connect(socket_path: Path, timeout_seconds: float) -> socket.socket:
+def connect_socket(socket_path: Path, timeout_seconds: float) -> socket.socket:
     connection = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
     connection.settimeout(timeout_seconds)
     try:
@@ -340,28 +343,26 @@ def _connect(socket_path: Path, timeout_seconds: float) -> socket.socket:
     return connection
 
 
-def _send_envelope(
-    connection: socket.socket, envelope: Mapping[str, JSONValue]
-) -> None:
+def send_envelope(connection: socket.socket, envelope: Mapping[str, JSONValue]) -> None:
     try:
-        connection.sendall(_encode_envelope(envelope))
+        connection.sendall(encode_envelope(envelope))
     except TimeoutError as exc:
         raise HerdrClientError("timed out writing to herdr socket") from exc
     except OSError as exc:
         raise HerdrClientError("could not write to herdr socket") from exc
 
 
-def _read_json_line(file: BinaryIO) -> JsonDict:
-    line = _readline(file)
+def read_json_line(file: BinaryIO) -> JsonDict:
+    line = read_line(file)
     if line == b"":
         raise HerdrClientError("herdr socket closed before a response was received")
-    response = _decode_json(line)
+    response = decode_json(line)
     if not isinstance(response, dict):
         raise HerdrClientError("herdr response must be a JSON object")
-    return cast(JsonDict, response)
+    return cast("JsonDict", response)
 
 
-def _readline(file: BinaryIO) -> bytes:
+def read_line(file: BinaryIO) -> bytes:
     try:
         return file.readline()
     except TimeoutError as exc:

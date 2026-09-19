@@ -84,7 +84,15 @@ select = [
   "SLF",
   "SLOT",
   "UP",
+  "PL",
+  "PYI",
 ]
+
+[tool.ruff.lint.pylint]
+max-args = 6
+max-positional-args = 6
+max-statements = 65
+max-returns = 7
 
 [tool.ruff.lint.per-file-ignores]
 # ``format`` is part of the public protocol API and must remain a keyword.
@@ -105,8 +113,13 @@ quote-style = "double"
 
 [tool.pyrefly]
 preset = "all"
-project-includes = ["src/**/*.py", "src/**/*.pyi", "tests/typecheck_contracts.py"]
-search-path = ["src"]
+project-includes = [
+  "src/**/*.py",
+  "src/**/*.pyi",
+  "tests/**/*.py",
+  "tools/**/*.py",
+]
+search-path = ["src", "tests"]
 python-version = "3.13"
 check-unannotated-defs = true
 strict-callable-subtyping = true

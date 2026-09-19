@@ -8,7 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from herdr_client import AsyncHerdrClient, HerdrApiError
+from herdr_client import (
+    SCHEMA_PROTOCOL,
+    AsyncHerdrClient,
+    EventSubscription,
+    HerdrApiError,
+    JsonObject,
+)
 
 from .support import (
     LiveWorkspace,
@@ -24,29 +30,37 @@ from .support import (
 pytestmark = pytest.mark.integration
 
 
-def _init_repository(repo: Path) -> None:
+def init_repository(repo: Path) -> None:
     repo.mkdir()
-    subprocess.run(["git", "init", str(repo)], check=True, capture_output=True)
-    subprocess.run(
+    init_result = subprocess.run(
+        ["git", "init", str(repo)], check=True, capture_output=True
+    )
+    del init_result
+    config_email = subprocess.run(
         ["git", "-C", str(repo), "config", "user.email", "herdr-py@example.invalid"],
         check=True,
         capture_output=True,
     )
-    subprocess.run(
+    del config_email
+    config_name = subprocess.run(
         ["git", "-C", str(repo), "config", "user.name", "herdr-py integration"],
         check=True,
         capture_output=True,
     )
-    (repo / "README.txt").write_text("integration fixture\n")
-    subprocess.run(["git", "-C", str(repo), "add", "README.txt"], check=True)
-    subprocess.run(
+    del config_name
+    written = (repo / "README.txt").write_text("integration fixture\n")
+    del written
+    added = subprocess.run(["git", "-C", str(repo), "add", "README.txt"], check=True)
+    del added
+    committed = subprocess.run(
         ["git", "-C", str(repo), "commit", "-m", "initial integration fixture"],
         check=True,
         capture_output=True,
     )
+    del committed
 
 
-def _resolve_path(value: str) -> Path:
+def resolve_path(value: str) -> Path:
     return Path(value).resolve()
 
 
@@ -54,7 +68,7 @@ async def test_ping_and_schema_identity(async_client: AsyncHerdrClient) -> None:
     result = await async_client.ping()
 
     assert_result_type(result, "pong")
-    assert result["protocol"] == 22
+    assert result["protocol"] == SCHEMA_PROTOCOL
     assert isinstance(result["version"], str)
 
 
@@ -69,7 +83,7 @@ async def test_read_only_request_variants(
     case: RequestCase,
 ) -> None:
     try:
-        result = await async_client.request(
+        result: JsonObject = await async_client.request(
             case.method, case.params(async_live_workspace)
         )
     except HerdrApiError as exc:
@@ -186,7 +200,7 @@ async def test_events_wait_and_subscription(
         )
 
     second_token = f"herdr_py_{uuid.uuid4().hex}"
-    subscription_filter = {
+    subscription_filter: EventSubscription = {
         "type": "pane.output_matched",
         "pane_id": async_live_workspace.pane_id,
         "source": "recent",
@@ -196,7 +210,7 @@ async def test_events_wait_and_subscription(
     }
     async with async_client.subscribe([subscription_filter]) as subscription:
         assert_result_type(subscription.ack["result"], "subscription_started")
-        event_task = asyncio.create_task(anext(subscription.events()))
+        event_task = asyncio.ensure_future(anext(subscription.events()))
         await async_client.pane_send_input(
             async_live_workspace.pane_id,
             text=safe_command(second_token),
@@ -470,7 +484,7 @@ async def test_worktree_lifecycle_in_private_repository(
     integration_root: Path,
 ) -> None:
     repo = integration_root / f"repo-{uuid.uuid4().hex}"
-    await asyncio.to_thread(_init_repository, repo)
+    await asyncio.to_thread(init_repository, repo)
 
     branch = f"herdr-py-{uuid.uuid4().hex}"
     checkout = integration_root / f"checkout-{uuid.uuid4().hex}"
@@ -493,7 +507,7 @@ async def test_worktree_lifecycle_in_private_repository(
     )
     worktree = required_object(created.get("worktree"), "worktree")
     returned_path = await asyncio.to_thread(
-        _resolve_path, required_string(worktree.get("path"), "path")
+        resolve_path, required_string(worktree.get("path"), "path")
     )
     checkout_path = await asyncio.to_thread(checkout.resolve)
     assert returned_path == checkout_path

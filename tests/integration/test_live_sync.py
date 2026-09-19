@@ -8,7 +8,13 @@ from pathlib import Path
 
 import pytest
 
-from herdr_client import HerdrApiError, HerdrClient
+from herdr_client import (
+    SCHEMA_PROTOCOL,
+    EventSubscription,
+    HerdrApiError,
+    HerdrClient,
+    JsonObject,
+)
 
 from .support import (
     LiveWorkspace,
@@ -29,7 +35,7 @@ def test_ping_and_schema_identity(sync_client: HerdrClient) -> None:
     result = sync_client.ping()
 
     assert_result_type(result, "pong")
-    assert result["protocol"] == 22
+    assert result["protocol"] == SCHEMA_PROTOCOL
     assert isinstance(result["version"], str)
 
 
@@ -44,7 +50,9 @@ def test_read_only_request_variants(
     case: RequestCase,
 ) -> None:
     try:
-        result = sync_client.request(case.method, case.params(live_workspace))
+        result: JsonObject = sync_client.request(
+            case.method, case.params(live_workspace)
+        )
     except HerdrApiError as exc:
         if case.method == "pane.graphics.info" and exc.code == "cell_size_unavailable":
             pytest.skip("headless Herdr session has no host cell size")
@@ -200,19 +208,22 @@ def test_events_wait_and_subscription(
     live_workspace: LiveWorkspace,
 ) -> None:
     with pytest.raises(HerdrApiError, match="unsupported_event_wait_match"):
-        sync_client.request(
-            "events.wait",
-            {
-                "match_event": {
-                    "event": "pane_output_changed",
-                    "pane_id": live_workspace.pane_id,
+        assert (
+            sync_client.request(
+                "events.wait",
+                {
+                    "match_event": {
+                        "event": "pane_output_changed",
+                        "pane_id": live_workspace.pane_id,
+                    },
+                    "timeout_ms": 100,
                 },
-                "timeout_ms": 100,
-            },
+            )
+            is not None
         )
 
     second_token = f"herdr_py_{uuid.uuid4().hex}"
-    subscription_filter = {
+    subscription_filter: EventSubscription = {
         "type": "pane.output_matched",
         "pane_id": live_workspace.pane_id,
         "source": "recent",
@@ -224,11 +235,12 @@ def test_events_wait_and_subscription(
         assert_result_type(subscription.ack["result"], "subscription_started")
         with ThreadPoolExecutor(max_workers=1) as executor:
             event_future = executor.submit(next, subscription.events())
-            sync_client.pane_send_input(
+            input_result = sync_client.pane_send_input(
                 live_workspace.pane_id,
                 text=safe_command(second_token),
                 keys=["Enter"],
             )
+            del input_result
             event = event_future.result(timeout=5)
         assert isinstance(event.get("event"), str)
         assert isinstance(event.get("data"), dict)
@@ -487,24 +499,32 @@ def test_worktree_lifecycle_in_private_repository(
 ) -> None:
     repo = integration_root / f"repo-{uuid.uuid4().hex}"
     repo.mkdir()
-    subprocess.run(["git", "init", str(repo)], check=True, capture_output=True)
-    subprocess.run(
+    init_result = subprocess.run(
+        ["git", "init", str(repo)], check=True, capture_output=True
+    )
+    del init_result
+    config_email = subprocess.run(
         ["git", "-C", str(repo), "config", "user.email", "herdr-py@example.invalid"],
         check=True,
         capture_output=True,
     )
-    subprocess.run(
+    del config_email
+    config_name = subprocess.run(
         ["git", "-C", str(repo), "config", "user.name", "herdr-py integration"],
         check=True,
         capture_output=True,
     )
-    (repo / "README.txt").write_text("integration fixture\n")
-    subprocess.run(["git", "-C", str(repo), "add", "README.txt"], check=True)
-    subprocess.run(
+    del config_name
+    written = (repo / "README.txt").write_text("integration fixture\n")
+    del written
+    added = subprocess.run(["git", "-C", str(repo), "add", "README.txt"], check=True)
+    del added
+    committed = subprocess.run(
         ["git", "-C", str(repo), "commit", "-m", "initial integration fixture"],
         check=True,
         capture_output=True,
     )
+    del committed
 
     branch = f"herdr-py-{uuid.uuid4().hex}"
     checkout = integration_root / f"checkout-{uuid.uuid4().hex}"
@@ -585,7 +605,8 @@ def test_worktree_lifecycle_in_private_repository(
             ):
                 owned_ids.add(workspace_id)
         for workspace_id in owned_ids & remaining_ids:
-            sync_client.request(
+            close_result = sync_client.request(
                 "workspace.close",
                 {"workspace_id": workspace_id, "close_group": False},
             )
+            del close_result

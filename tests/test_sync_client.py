@@ -8,7 +8,7 @@ import time
 import uuid
 from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import Any
+from typing import NotRequired, TypedDict
 
 import pytest
 
@@ -17,15 +17,29 @@ from herdr_client import (
     HerdrApiError,
     HerdrClient,
     HerdrClientError,
+    JsonObject,
     Subscription,
 )
 from herdr_client.async_client import AsyncHerdrClient as AsyncSubpackageClient
 from herdr_client.client import AsyncHerdrClient as LegacyAsyncClient
+from herdr_client.protocol import narrow_json
 from herdr_client.sync import HerdrClient as SyncSubpackageClient
 
-JsonDict = dict[str, Any]
-ResponseFactory = Callable[[JsonDict], JsonDict]
-Response = JsonDict | ResponseFactory
+ResponseFactory = Callable[[JsonObject], JsonObject]
+Response = JsonObject | ResponseFactory
+
+
+class Handler(TypedDict):
+    responses: list[Response]
+    delay: NotRequired[float]
+
+
+def decode_request(raw: str) -> JsonObject:
+    decoded: object = json.loads(raw)
+    value = narrow_json(decoded)
+    if not isinstance(value, dict):
+        raise AssertionError("fake server received a non-object request")
+    return value
 
 
 class FakeSyncHerdrServer:
@@ -33,9 +47,9 @@ class FakeSyncHerdrServer:
         self.socket_path = (
             Path(tempfile.gettempdir()) / f"herdr-sync-test-{uuid.uuid4().hex}.sock"
         )
-        self.handlers: list[dict[str, Any]] = []
-        self.requests: list[JsonDict] = []
-        self._thread = threading.Thread(target=self._serve, daemon=True)
+        self.handlers: list[Handler] = []
+        self.requests: list[JsonObject] = []
+        self._thread = threading.Thread(target=self.serve, daemon=True)
         self._ready = threading.Event()
         self._stop = threading.Event()
         self._error: BaseException | None = None
@@ -57,7 +71,7 @@ class FakeSyncHerdrServer:
         if self._error is not None:
             raise self._error
 
-    def _serve(self) -> None:
+    def serve(self) -> None:
         if self.socket_path.exists():
             self.socket_path.unlink()
         server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -72,14 +86,15 @@ class FakeSyncHerdrServer:
                 except TimeoutError:
                     continue
                 with connection:
-                    raw = self._recv_line(connection)
-                    if not raw:
+                    raw = self.recv_line(connection)
+                    if raw == "":
                         continue
-                    request = json.loads(raw)
+                    request = decode_request(raw)
                     self.requests.append(request)
-                    handler = (
-                        self.handlers.pop(0) if self.handlers else {"responses": []}
-                    )
+                    if len(self.handlers) > 0:
+                        handler = self.handlers.pop(0)
+                    else:
+                        handler: Handler = {"responses": []}
                     time.sleep(handler.get("delay", 0.0))
                     for response in handler.get("responses", []):
                         payload = response(request) if callable(response) else response
@@ -93,17 +108,17 @@ class FakeSyncHerdrServer:
             server.close()
 
     @staticmethod
-    def _recv_line(connection: socket.socket) -> str:
+    def recv_line(connection: socket.socket) -> str:
         chunks: list[bytes] = []
         while True:
             chunk = connection.recv(4096)
-            if not chunk:
+            if chunk == b"":
                 break
             chunks.append(chunk)
             if b"\n" in chunk:
                 break
         data = b"".join(chunks)
-        return data.splitlines()[0].decode() if data else ""
+        return data.splitlines()[0].decode() if data != b"" else ""
 
 
 @pytest.fixture
@@ -147,16 +162,17 @@ def test_helpers_preserve_request_parameters(sync_server: FakeSyncHerdrServer) -
     ]
     client = HerdrClient(socket_path=sync_server.socket_path)
 
-    client.workspace_list()
-    client.tab_list(workspace_id="w1")
-    client.pane_list()
-    client.pane_read("w1-1", lines=None, strip_ansi=False, format="text")
-    client.pane_wait_for_output(
+    workspace_result = client.workspace_list()
+    tab_result = client.tab_list(workspace_id="w1")
+    pane_result = client.pane_list()
+    read_result = client.pane_read("w1-1", lines=None, strip_ansi=False, format="text")
+    wait_result = client.pane_wait_for_output(
         "w1-1",
         {"type": "substring", "value": "ready"},
         lines=10,
         timeout_ms=1000,
     )
+    del workspace_result, tab_result, pane_result, read_result, wait_result
 
     assert [request["method"] for request in sync_server.requests] == [
         "workspace.list",
@@ -215,7 +231,7 @@ def test_api_errors_raise_exception(sync_server: FakeSyncHerdrServer) -> None:
     client = HerdrClient(socket_path=sync_server.socket_path)
 
     with pytest.raises(HerdrApiError) as exc:
-        client.pane_send_text("w123-99", "hello")
+        assert client.pane_send_text("w123-99", "hello") is not None
 
     assert exc.value.code == "pane_not_found"
     assert "w123-99" in str(exc.value)
@@ -225,7 +241,7 @@ def test_request_rejects_non_canonical_method(sync_server: FakeSyncHerdrServer) 
     client = HerdrClient(socket_path=sync_server.socket_path)
 
     with pytest.raises(HerdrClientError, match="unsupported herdr socket method"):
-        client.request("pane.targeted_read", {"pane_id": "w123-1"})
+        assert client.request("pane.targeted_read", {"pane_id": "w123-1"}) is not None
 
 
 def test_subscription_reads_ack_then_events(sync_server: FakeSyncHerdrServer) -> None:
@@ -274,7 +290,7 @@ def test_subscription_api_errors_close_the_socket(
     subscription = client.subscribe([])
 
     with pytest.raises(HerdrApiError, match="invalid_subscription"):
-        subscription.__enter__()
+        assert subscription.__enter__() is not None
     subscription.close()
 
 
@@ -285,7 +301,7 @@ def test_socket_closure_before_response_raises_client_error(
     client = HerdrClient(socket_path=sync_server.socket_path)
 
     with pytest.raises(HerdrClientError, match="closed before a response"):
-        client.ping()
+        assert client.ping() is not None
 
 
 def test_read_timeout_raises_client_error(sync_server: FakeSyncHerdrServer) -> None:
@@ -298,7 +314,7 @@ def test_read_timeout_raises_client_error(sync_server: FakeSyncHerdrServer) -> N
     client = HerdrClient(socket_path=sync_server.socket_path, timeout=0.01)
 
     with pytest.raises(HerdrClientError, match="timed out reading"):
-        client.ping()
+        assert client.ping() is not None
 
 
 def test_subscription_close_is_idempotent(sync_server: FakeSyncHerdrServer) -> None:

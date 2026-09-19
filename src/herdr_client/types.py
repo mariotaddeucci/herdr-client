@@ -1,21 +1,92 @@
-"""Typed models for the public herdr socket API.
+"""Typed models exposed by the public Herdr client API.
 
-The models intentionally use dictionaries and ``TypedDict`` rather than
-runtime validation objects so callers keep normal JSON/dict ergonomics.
+Wire models come from the pinned JSON Schema generator. The few hand-written
+envelopes below describe transport shapes that are intentionally extensible.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Literal, NotRequired, Required, TypedDict
+from typing import NotRequired, TypedDict
+
+from . import generated_types
+
+AgentSessionInfo = generated_types.EventAgentSessionInfo
+AgentStatus = generated_types.EventAgentStatus
+EventsSubscribeParams = generated_types.RequestEventsSubscribeParams
+OutputMatch = generated_types.RequestOutputMatch
+PaneListParams = generated_types.RequestPaneListParams
+PaneReadParams = generated_types.RequestPaneReadParams
+PaneSendInputParams = generated_types.RequestPaneSendInputParams
+PaneSendKeysParams = generated_types.RequestPaneSendKeysParams
+PaneSendTextParams = generated_types.RequestPaneSendTextParams
+PaneWaitForOutputParams = generated_types.RequestPaneWaitForOutputParams
+ReadFormat = generated_types.RequestReadFormat
+ReadSource = generated_types.RequestReadSource
+EventSubscription = generated_types.RequestSubscription
+TabListParams = generated_types.RequestTabListParams
+ResponseEventData = generated_types.ResponseEventData
+PaneInfo = generated_types.ResponsePaneInfo
+PaneReadResult = generated_types.ResponsePaneReadResult
+GeneratedResponseResult = generated_types.ResponseResponseResult
+OkResult = generated_types.ResponseResultOk
+OutputMatchedResult = generated_types.ResponseResultOutputMatched
+PaneListResult = generated_types.ResponseResultPaneList
+PaneReadResponse = generated_types.ResponseResultPaneRead
+PongResult = generated_types.ResponseResultPong
+SubscriptionStartedResult = generated_types.ResponseResultSubscriptionStarted
+TabListResult = generated_types.ResponseResultTabList
+WorkspaceListResult = generated_types.ResponseResultWorkspaceList
+ServerCapabilities = generated_types.ResponseServerCapabilities
+TabInfo = generated_types.ResponseTabInfo
+WorkspaceInfo = generated_types.ResponseWorkspaceInfo
+WorkspaceWorktreeInfo = generated_types.ResponseWorkspaceWorktreeInfo
 
 type JSONScalar = bool | int | float | str | None
 type JSONValue = JSONScalar | list[JSONValue] | Mapping[str, JSONValue]
 type JsonObject = dict[str, JSONValue]
 
-ReadSource = Literal["visible", "recent", "recent_unwrapped", "detection"]
-ReadFormat = Literal["text", "ansi"]
-AgentStatus = Literal["idle", "working", "blocked", "done", "unknown"]
+__all__ = [
+    "AgentSessionInfo",
+    "AgentStatus",
+    "ErrorEnvelope",
+    "ErrorObject",
+    "EventEnvelope",
+    "EventSubscription",
+    "EventsSubscribeParams",
+    "JSONValue",
+    "JsonObject",
+    "OkResult",
+    "OutputMatch",
+    "OutputMatchedResult",
+    "PaneInfo",
+    "PaneListParams",
+    "PaneListResult",
+    "PaneReadParams",
+    "PaneReadResponse",
+    "PaneReadResult",
+    "PaneSendInputParams",
+    "PaneSendKeysParams",
+    "PaneSendTextParams",
+    "PaneWaitForOutputParams",
+    "PingParams",
+    "PongResult",
+    "ReadFormat",
+    "ReadSource",
+    "RequestEnvelope",
+    "ResponseEnvelope",
+    "ResponseResult",
+    "ServerCapabilities",
+    "SubscriptionAck",
+    "SubscriptionStartedResult",
+    "SuccessEnvelope",
+    "TabInfo",
+    "TabListParams",
+    "TabListResult",
+    "WorkspaceInfo",
+    "WorkspaceListResult",
+    "WorkspaceWorktreeInfo",
+]
 
 
 class ErrorObject(TypedDict):
@@ -43,233 +114,15 @@ class ErrorEnvelope(TypedDict):
 type ResponseEnvelope = SuccessEnvelope | ErrorEnvelope
 
 
-class ServerCapabilities(TypedDict, total=False):
-    live_handoff: Required[bool]
-    detached_server_daemon: NotRequired[bool]
-    endpoint_protocol_generation: NotRequired[int | None]
-    health_check: NotRequired[bool]
-    surface_interest: NotRequired[bool]
-
-
-class AgentSessionInfo(TypedDict):
-    source: str
-    agent: str
-    kind: Literal["id", "path"]
-    value: str
-
-
-class WorkspaceWorktreeInfo(TypedDict):
-    repo_key: str
-    repo_name: str
-    repo_root: str
-    checkout_path: str
-    is_linked_worktree: bool
-
-
-class WorkspaceInfo(TypedDict, total=False):
-    workspace_id: Required[str]
-    number: Required[int]
-    label: Required[str]
-    focused: Required[bool]
-    pane_count: Required[int]
-    tab_count: Required[int]
-    active_tab_id: Required[str]
-    agent_status: Required[AgentStatus]
-    tokens: NotRequired[dict[str, str]]
-    worktree: NotRequired[WorkspaceWorktreeInfo | None]
-
-
-class TabInfo(TypedDict, total=False):
-    tab_id: Required[str]
-    workspace_id: Required[str]
-    number: Required[int]
-    label: Required[str]
-    focused: Required[bool]
-    pane_count: Required[int]
-    agent_status: Required[AgentStatus]
-
-
-class PaneInfo(TypedDict, total=False):
-    pane_id: Required[str]
-    terminal_id: Required[str]
-    workspace_id: Required[str]
-    tab_id: Required[str]
-    focused: Required[bool]
-    agent_status: Required[AgentStatus]
-    revision: Required[int]
-    agent: NotRequired[str | None]
-    agent_session: NotRequired[AgentSessionInfo | None]
-    cwd: NotRequired[str | None]
-    display_agent: NotRequired[str | None]
-    foreground_cwd: NotRequired[str | None]
-    label: NotRequired[str | None]
-    scroll: NotRequired[JsonObject | None]
-    state_labels: NotRequired[dict[str, str]]
-    terminal_title: NotRequired[str | None]
-    terminal_title_stripped: NotRequired[str | None]
-    title: NotRequired[str | None]
-    tokens: NotRequired[dict[str, str]]
-
-
-class PaneReadResult(TypedDict):
-    pane_id: str
-    workspace_id: str
-    tab_id: str
-    source: ReadSource
-    format: ReadFormat
-    text: str
-    revision: int
-    truncated: bool
-
-
-class OutputSubstringMatch(TypedDict):
-    type: Literal["substring"]
-    value: str
-
-
-class OutputRegexMatch(TypedDict):
-    type: Literal["regex"]
-    value: str
-
-
-type OutputMatch = OutputSubstringMatch | OutputRegexMatch
-
-SubscriptionType = Literal[
-    "workspace.created",
-    "workspace.updated",
-    "workspace.metadata_updated",
-    "workspace.renamed",
-    "workspace.moved",
-    "workspace.reordered",
-    "workspace.closed",
-    "workspace.focused",
-    "worktree.created",
-    "worktree.opened",
-    "worktree.removed",
-    "tab.created",
-    "tab.closed",
-    "tab.focused",
-    "tab.renamed",
-    "tab.moved",
-    "pane.created",
-    "pane.closed",
-    "pane.updated",
-    "pane.focused",
-    "pane.moved",
-    "pane.exited",
-    "pane.agent_detected",
-    "pane.output_matched",
-    "pane.agent_status_changed",
-    "pane.scroll_changed",
-    "layout.updated",
-]
-
-
-class EventSubscription(TypedDict, total=False):
-    type: Required[SubscriptionType]
-    pane_id: NotRequired[str]
-    source: NotRequired[ReadSource]
-    match: NotRequired[OutputMatch]
-    lines: NotRequired[int | None]
-    strip_ansi: NotRequired[bool]
-    agent_status: NotRequired[AgentStatus | None]
-
-
 class EventEnvelope(TypedDict):
+    """An event envelope with typed known data and forward-compatible extras."""
+
     event: str
-    data: JsonObject
+    data: ResponseEventData | JsonObject
 
 
 class PingParams(TypedDict):
     pass
-
-
-class TabListParams(TypedDict, total=False):
-    workspace_id: str | None
-
-
-class PaneListParams(TypedDict, total=False):
-    workspace_id: str | None
-
-
-class PaneSendTextParams(TypedDict):
-    pane_id: str
-    text: str
-
-
-class PaneSendKeysParams(TypedDict):
-    pane_id: str
-    keys: list[str]
-
-
-class PaneSendInputParams(TypedDict, total=False):
-    pane_id: Required[str]
-    text: NotRequired[str]
-    keys: NotRequired[list[str]]
-
-
-class PaneReadParams(TypedDict, total=False):
-    pane_id: Required[str]
-    source: Required[ReadSource]
-    lines: NotRequired[int | None]
-    strip_ansi: NotRequired[bool]
-    format: NotRequired[ReadFormat]
-
-
-class PaneWaitForOutputParams(TypedDict, total=False):
-    pane_id: Required[str]
-    source: Required[ReadSource]
-    match: Required[OutputMatch]
-    lines: NotRequired[int | None]
-    timeout_ms: NotRequired[int | None]
-    strip_ansi: NotRequired[bool]
-
-
-class EventsSubscribeParams(TypedDict):
-    subscriptions: list[EventSubscription]
-
-
-class PongResult(TypedDict, total=False):
-    type: Required[Literal["pong"]]
-    version: Required[str]
-    protocol: Required[int]
-    capabilities: NotRequired[ServerCapabilities | None]
-
-
-class WorkspaceListResult(TypedDict):
-    type: Literal["workspace_list"]
-    workspaces: list[WorkspaceInfo]
-
-
-class TabListResult(TypedDict):
-    type: Literal["tab_list"]
-    tabs: list[TabInfo]
-
-
-class PaneListResult(TypedDict):
-    type: Literal["pane_list"]
-    panes: list[PaneInfo]
-
-
-class OkResult(TypedDict):
-    type: Literal["ok"]
-
-
-class PaneReadResponse(TypedDict):
-    type: Literal["pane_read"]
-    read: PaneReadResult
-
-
-class OutputMatchedResult(TypedDict, total=False):
-    type: Required[Literal["output_matched"]]
-    pane_id: Required[str]
-    revision: Required[int]
-    read: Required[PaneReadResult]
-    matched_line: NotRequired[str | None]
-
-
-class SubscriptionStartedResult(TypedDict):
-    type: Literal["subscription_started"]
 
 
 class SubscriptionAck(TypedDict):
@@ -277,14 +130,4 @@ class SubscriptionAck(TypedDict):
     result: SubscriptionStartedResult
 
 
-type ResponseResult = (
-    JsonObject
-    | PongResult
-    | WorkspaceListResult
-    | TabListResult
-    | PaneListResult
-    | OkResult
-    | PaneReadResponse
-    | OutputMatchedResult
-    | SubscriptionStartedResult
-)
+type ResponseResult = GeneratedResponseResult | JsonObject

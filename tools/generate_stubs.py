@@ -56,7 +56,8 @@ def format_generated(source: str) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true")
+    check_argument = parser.add_argument("--check", action="store_true")
+    del check_argument
     args = parser.parse_args()
     output = format_generated(render())
 
@@ -65,7 +66,8 @@ def main() -> None:
             raise SystemExit(f"generated stubs are stale: {OUTPUT_PATH}")
         return
 
-    OUTPUT_PATH.write_text(output)
+    characters_written = OUTPUT_PATH.write_text(output)
+    del characters_written
 
 
 if __name__ == "__main__":

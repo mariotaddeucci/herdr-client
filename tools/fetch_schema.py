@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+from typing import cast
 from urllib.parse import urlparse
 from urllib.request import urlopen
 
@@ -21,10 +22,10 @@ SCHEMA_PATH = ROOT / "schema" / "herdr-api.schema.json"
 
 def fetch() -> bytes:
     parsed_url = urlparse(OFFICIAL_SCHEMA_URL)
-    if parsed_url.scheme != "https" or not parsed_url.netloc:
+    if parsed_url.scheme != "https" or parsed_url.netloc == "":
         raise RuntimeError("official schema URL must use HTTPS")
     with urlopen(OFFICIAL_SCHEMA_URL, timeout=30) as response:  # noqa: S310
-        payload = response.read()
+        payload = cast(bytes, response.read())
     digest = hashlib.sha256(payload).hexdigest()
     if digest != OFFICIAL_SCHEMA_SHA256:
         raise RuntimeError(
@@ -41,11 +42,12 @@ def normalized(payload: bytes) -> bytes:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
+    check_argument = parser.add_argument(
         "--check",
         action="store_true",
         help="verify the checked-in schema without changing it",
     )
+    del check_argument
     args = parser.parse_args()
 
     payload = normalized(fetch())
@@ -55,7 +57,8 @@ def main() -> None:
         return
 
     SCHEMA_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SCHEMA_PATH.write_bytes(payload)
+    bytes_written = SCHEMA_PATH.write_bytes(payload)
+    del bytes_written
 
 
 if __name__ == "__main__":
