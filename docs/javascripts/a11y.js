@@ -1,4 +1,9 @@
 function labelSearchDialogs() {
+  document.documentElement.classList.toggle(
+    "landing-home",
+    Boolean(document.querySelector(".landing-page")),
+  );
+
   document.querySelectorAll('.md-search[role="dialog"]').forEach((dialog) => {
     if (!dialog.hasAttribute("aria-label")) {
       dialog.setAttribute("aria-label", "Search documentation");

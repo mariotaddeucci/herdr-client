@@ -86,7 +86,7 @@ extra:
 
 nav:
   - Home: index.md
-  - Get started:
+  - Start here:
       - Installation: getting-started/installation.md
       - Quickstart: getting-started/quickstart.md
       - Concepts: getting-started/concepts.md
@@ -103,5 +103,6 @@ nav:
       - Types: reference/types.md
       - Exceptions: reference/exceptions.md
       - Protocol coverage: reference/protocol.md
-  - Contributing: contributing.md
-  - Publishing: publishing.md
+  - Maintainers:
+      - Contributing: contributing.md
+      - Publishing: publishing.md

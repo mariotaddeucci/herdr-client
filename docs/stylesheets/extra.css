@@ -1,15 +1,15 @@
 :root > * {
-  --md-primary-fg-color: #12343b;
-  --md-primary-fg-color--light: #1b5360;
-  --md-primary-fg-color--dark: #0b2429;
-  --md-accent-fg-color: #087f5b;
-  --md-typeset-a-color: #087f5b;
-  --md-default-bg-color: #f7faf8;
-  --md-default-fg-color: #17262a;
-  --md-default-fg-color--light: #52666a;
+  --md-primary-fg-color: #12383b;
+  --md-primary-fg-color--light: #1d5a5e;
+  --md-primary-fg-color--dark: #0a2629;
+  --md-accent-fg-color: #087f62;
+  --md-typeset-a-color: #006b52;
+  --md-default-bg-color: #f5f8f6;
+  --md-default-fg-color: #193034;
+  --md-default-fg-color--light: #506568;
   --md-default-fg-color--lighter: #8ca09f;
   --md-default-fg-color--lightest: #d8e5e1;
-  --md-code-bg-color: #edf4f1;
+  --md-code-bg-color: #eaf3ef;
   --md-code-fg-color: #16363b;
   --md-footer-fg-color: #e4f0ec;
   --md-footer-fg-color--light: #c0d4ce;
@@ -17,12 +17,12 @@
 }
 
 [data-md-color-scheme="slate"] {
-  --md-primary-fg-color: #11373b;
-  --md-primary-fg-color--light: #1b5558;
+  --md-primary-fg-color: #103337;
+  --md-primary-fg-color--light: #1a5357;
   --md-primary-fg-color--dark: #092326;
-  --md-accent-fg-color: #6ee7b7;
-  --md-typeset-a-color: #77e8bd;
-  --md-default-bg-color: #0c1517;
+  --md-accent-fg-color: #70e6b8;
+  --md-typeset-a-color: #7de9c1;
+  --md-default-bg-color: #0b1517;
   --md-default-fg-color: #e4f0ec;
   --md-default-fg-color--light: #b7c9c5;
   --md-default-fg-color--lighter: #879e99;
@@ -32,6 +32,14 @@
   --md-footer-fg-color: #e4f0ec;
   --md-footer-fg-color--light: #c0d4ce;
   --md-footer-fg-color--lighter: #a7bfba;
+}
+
+[data-md-color-scheme="default"] .highlight .kn {
+  color: #2f5eaa;
+}
+
+[data-md-color-scheme="default"] .highlight .nn {
+  color: #9841a8;
 }
 
 html {
@@ -60,14 +68,23 @@ pre,
 }
 
 .md-tabs__link {
+  border-bottom: 2px solid transparent;
+  border-radius: 0.45rem 0.45rem 0 0;
   opacity: 0.72;
+  padding: 0.72rem 0.9rem 0.62rem;
   transition: opacity 160ms ease, color 160ms ease;
 }
 
 .md-tabs__link--active,
 .md-tabs__link:hover {
+  border-bottom-color: var(--md-accent-fg-color);
   color: var(--md-accent-fg-color);
   opacity: 1;
+}
+
+.landing-home .md-tabs,
+.landing-home .md-header__button[for="__drawer"] {
+  display: none;
 }
 
 .md-typeset a:not(.md-button) {
@@ -107,7 +124,7 @@ pre,
 }
 
 .md-main__inner {
-  margin-top: 1.5rem;
+  margin-top: 0.75rem;
 }
 
 .md-typeset h1,
@@ -139,7 +156,7 @@ pre,
   display: grid;
   gap: 2.5rem;
   grid-template-columns: minmax(0, 1.05fr) minmax(20rem, 0.95fr);
-  margin: 1rem 0 3.5rem;
+  margin: 0.25rem 0 3.5rem;
   overflow: hidden;
   padding: clamp(2rem, 5vw, 4.5rem);
   position: relative;
@@ -148,16 +165,17 @@ pre,
 .landing-hero::after {
   background: var(--md-accent-fg-color);
   content: "";
-  height: 8rem;
-  opacity: 0.9;
+  height: 6.5rem;
+  opacity: 0.76;
   position: absolute;
-  right: -4rem;
-  top: -4rem;
+  right: -3.25rem;
+  top: -3.25rem;
   transform: rotate(45deg);
-  width: 8rem;
+  width: 6.5rem;
 }
 
 .hero-copy {
+  min-width: 0;
   position: relative;
   z-index: 1;
 }
@@ -198,6 +216,17 @@ pre,
   gap: 0.65rem;
 }
 
+.hero-actions > p {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin: 0;
+}
+
+.hero-actions .md-button {
+  box-sizing: border-box;
+}
+
 .install-chip {
   align-items: center;
   background: color-mix(in srgb, var(--md-default-bg-color) 68%, var(--md-primary-fg-color));
@@ -229,10 +258,11 @@ pre,
   background: #0b1517;
   border: 1px solid #2a4848;
   border-radius: 0.95rem;
-  box-shadow: 0 1.5rem 3rem color-mix(in srgb, #061011 46%, transparent);
+  box-shadow: 0 1.2rem 2.5rem color-mix(in srgb, #061011 34%, transparent);
   color: #dff8ed;
   overflow: hidden;
   position: relative;
+  min-width: 0;
   z-index: 1;
 }
 
@@ -406,8 +436,8 @@ pre,
   .landing-hero {
     border-radius: 1rem;
     gap: 1.8rem;
-    margin: 0.5rem 0 2.4rem;
-    padding: 1.5rem;
+    margin: 0.15rem 0 2.4rem;
+    padding: 1.35rem;
   }
 
   .hero-copy h1 {
@@ -423,9 +453,26 @@ pre,
     flex-direction: column;
   }
 
+  .hero-actions > p {
+    flex-direction: column;
+    width: 100%;
+  }
+
   .hero-actions .md-button {
     text-align: center;
     width: 100%;
+  }
+
+  .md-header__source {
+    display: block;
+  }
+
+  .md-header__source .md-source__repository {
+    display: none;
+  }
+
+  .md-header__source .md-source {
+    padding: 0.4rem;
   }
 
   .install-chip {
