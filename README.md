@@ -1,66 +1,50 @@
 # herdr-client
 
-Clientes Python síncrono e assíncrono para a API de Unix socket do
-[herdr](https://github.com/ogulcancelik/herdr). O pacote implementa o protocolo canônico
-newline-delimited JSON sem dependências de runtime.
+Sync and async Python clients for the [herdr](https://github.com/herdrdev/herdr)
+Unix socket API. The package implements the canonical newline-delimited JSON
+protocol with no runtime dependencies.
 
-## Requisitos
+[![PyPI](https://img.shields.io/pypi/v/herdr-client)](https://pypi.org/project/herdr-client/)
+[![Documentation](https://img.shields.io/badge/docs-GitHub%20Pages-16c79a)](https://mariotaddeucci.github.io/herdr-client/)
 
-- Python 3.13 ou superior
-- `uv`
-- Uma instância do herdr expondo o Unix socket
+## Documentation
 
-## Instalação
+Read the complete documentation at
+<https://mariotaddeucci.github.io/herdr-client/>.
 
-Para usar a versão publicada:
+It includes installation, configuration, Sync and Async examples, subscriptions,
+typed results, raw requests, errors and the generated API reference.
+
+## Installation
 
 ```bash
 python -m pip install herdr-client
 ```
 
-Ou com `uv`:
+Or with `uv`:
 
 ```bash
 uv add herdr-client
 ```
 
-Para desenvolvimento, instale o ambiente do repositório:
+Requirements:
 
-```bash
-uv sync
-```
+- Python 3.13 or newer.
+- A running Herdr instance with an accessible Unix socket.
 
-O ambiente virtual, as dependências de desenvolvimento e o lockfile são gerenciados pelo
-`uv`. O pacote não possui dependências de runtime.
+## Quick example
 
-## Imports
-
-Os dois clientes podem ser importados diretamente pelo pacote principal:
-
-```python
-from herdr_client import AsyncHerdrClient, HerdrClient
-```
-
-Ou pelos subpacotes correspondentes:
-
-```python
-from herdr_client.async_client import AsyncHerdrClient
-from herdr_client.sync import HerdrClient
-```
-
-## Uso síncrono
+Synchronous:
 
 ```python
 from herdr_client import HerdrClient
 
-
 client = HerdrClient()
 print(client.ping())
 print(client.workspace_list())
-client.pane_send_input("w64e95948145ed1-1", text="pytest -q", keys=["Enter"])
 ```
 
-## Uso assíncrono
+Asynchronous:
 
 ```python
 import asyncio
@@ -70,96 +54,18 @@ from herdr_client import AsyncHerdrClient
 
 async def main() -> None:
     client = AsyncHerdrClient()
-
     print(await client.ping())
     print(await client.workspace_list())
-    await client.pane_send_input("w64e95948145ed1-1", text="pytest -q", keys=["Enter"])
 
 
 asyncio.run(main())
 ```
 
-Os métodos de `HerdrClient` são síncronos. Os métodos de `AsyncHerdrClient` são
-assíncronos e devem ser usados com `await`.
+The package name is `herdr-client`; the import package is `herdr_client`.
 
-## Tipos
+## Public API
 
-O pacote inclui `py.typed` e modelos `TypedDict` derivados do schema oficial. Os retornos
-dos wrappers continuam sendo dicionários comuns, então o acesso por índice permanece
-disponível:
-
-```python
-from herdr_client import HerdrClient, PongResult
-
-
-result: PongResult = HerdrClient().ping()
-print(result["version"])
-```
-
-`request()` possui overloads precisos quando o nome do método é literal e retorna um
-`JsonObject` no fallback dinâmico. Os tipos compartilhados, como `ReadSource`, `OutputMatch`
-e `EventSubscription`, estão disponíveis em `herdr_client` e `herdr_client.types`.
-
-## Socket
-
-Sem `socket_path` explícito, ambos os clientes seguem esta ordem:
-
-1. `session="name"` no construtor
-2. `HERDR_SOCKET_PATH`
-3. `HERDR_SESSION=name`
-4. `$HOME/.config/herdr/herdr.sock`
-
-Sessões nomeadas usam `$HOME/.config/herdr/sessions/<name>/herdr.sock`.
-
-```python
-from pathlib import Path
-
-from herdr_client import AsyncHerdrClient, HerdrClient
-
-
-sync_client = HerdrClient(socket_path=Path("/run/user/1000/herdr.sock"))
-async_client = AsyncHerdrClient(session="docs")
-```
-
-## Eventos
-
-O cliente síncrono usa context manager e iterator:
-
-```python
-from herdr_client import HerdrClient
-
-
-with HerdrClient().subscribe([{"type": "workspace.created"}]) as subscription:
-    print(subscription.ack)
-    for event in subscription.events():
-        print(event)
-```
-
-O cliente assíncrono usa async context manager e async generator:
-
-```python
-import asyncio
-
-from herdr_client import AsyncHerdrClient
-
-
-async def watch_events() -> None:
-    async with AsyncHerdrClient().subscribe(
-        [{"type": "workspace.created"}]
-    ) as subscription:
-        print(subscription.ack)
-        async for event in subscription.events():
-            print(event)
-
-
-asyncio.run(watch_events())
-```
-
-`Subscription.close()` e `AsyncSubscription.aclose()` são idempotentes.
-
-## API
-
-Os dois clientes oferecem a mesma superfície de operações:
+Both clients expose the same operation names:
 
 - `request(method, params)`
 - `ping()`
@@ -173,87 +79,68 @@ Os dois clientes oferecem a mesma superfície de operações:
 - `pane_wait_for_output(...)`
 - `subscribe(subscriptions)`
 
-Métodos não reconhecidos pela API canônica geram `HerdrClientError`. Respostas de erro do
-herdr geram `HerdrApiError`, que expõe os atributos `code` e `message`.
+Return values are ordinary dictionaries with schema-derived `TypedDict` types. The
+package includes `py.typed` for static type checkers.
 
-## Cobertura da API
+## Socket resolution
 
-O registro segue o schema oficial do herdr com protocolo `22` e contém 103 métodos JSON. Todos
-os métodos oficiais JSON podem ser enviados pelo `request()` bruto. Os 10 métodos de conveniência
-implementados são `ping`, `workspace_list`, `tab_list`, `pane_list`, `pane_send_text`,
-`pane_send_keys`, `pane_send_input`, `pane_read`, `pane_wait_for_output` e `subscribe`.
+Without an explicit `socket_path`, clients use this order:
 
-Os demais métodos oficiais possuem stubs nomeados nos clientes sync e async e levantam
-`NotImplementedError`, identificando o método e o schema correspondente. Use `request()`
-quando precisar chamar um método ainda sem wrapper. Os metadados estão disponíveis por meio
-de `METHOD_SCHEMAS`, `CANONICAL_METHODS`, `SCHEMA_PROTOCOL` e `SCHEMA_VERSION`.
+1. `session="name"` in the constructor.
+2. `HERDR_SOCKET_PATH`.
+3. `HERDR_SESSION=name`.
+4. `$HOME/.config/herdr/herdr.sock`.
 
-`pane.graphics.stream` permanece separado porque usa framing híbrido: request JSON inicial,
-headers JSON e bytes crus. Ele ainda levanta `NotImplementedError`.
+Named sessions use `$HOME/.config/herdr/sessions/<name>/herdr.sock`.
 
-O import legado `herdr_client.client` continua disponível para `AsyncHerdrClient`.
+```python
+from pathlib import Path
 
-## Desenvolvimento
+from herdr_client import AsyncHerdrClient, HerdrClient
 
-As configurações de `pytest`, `pytest-cov`, `ruff` e `pyrefly` ficam centralizadas no
-`pyproject.toml`. O pre-commit executa verificações de estrutura, segredos, segurança,
-formatação, lint e tipos antes de cada commit. A execução dos testes gera o relatório de
-linhas não cobertas e exige no mínimo 90% de cobertura.
+sync_client = HerdrClient(socket_path=Path("/run/user/1000/herdr.sock"))
+async_client = AsyncHerdrClient(session="docs")
+```
+
+## Protocol coverage
+
+The registry follows protocol 22 and contains 103 canonical JSON methods. Ten methods
+have convenience wrappers: `ping`, `workspace_list`, `tab_list`, `pane_list`,
+`pane_send_text`, `pane_send_keys`, `pane_send_input`, `pane_read`,
+`pane_wait_for_output` and `subscribe`.
+
+The remaining canonical methods have named stubs that raise `NotImplementedError`. Use
+`request()` for a canonical method without a convenience wrapper. The hybrid
+`pane.graphics.stream` transport is not implemented.
+
+## Development
 
 ```bash
-uv run pre-commit install
-uv run pre-commit run --all-files
+git clone https://github.com/mariotaddeucci/herdr-client.git
+cd herdr-client
+uv sync --all-groups
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
 uv run pyrefly check
-uv build
-PYTHONPATH=src uv run python tools/fetch_schema.py --check
-PYTHONPATH=src uv run python tools/generate_models.py --check
-PYTHONPATH=src uv run python tools/generate_stubs.py --check
+uv run mkdocs build --strict
 ```
 
-### Integração com Herdr
+The default test command requires at least 90 percent coverage. Live integration tests
+are opt-in and require an explicitly configured Herdr socket.
 
-Os testes live ficam em `tests/integration` e não rodam por padrão. Eles exigem um
-socket explícito para evitar que a suíte use a sessão padrão por acidente:
+## Publishing
 
-```bash
-HERDR_INTEGRATION_SOCKET="$HOME/.config/herdr/sessions/pytest/herdr.sock" \
-  uv run pytest --run-integration -m integration --no-cov
-```
-
-Se o socket não estiver configurado, não existir ou não responder ao `ping`, as
-fixtures marcam os testes live como `skipped` em vez de falhar a suíte.
-
-As fixtures criam workspaces, tabs, panes e repositórios Git temporários dentro do
-diretório da sessão do pytest e removem somente os recursos que criaram. Os comandos
-enviados aos panes são limitados a `printf`, `pwd` e `true`; métodos de agentes,
-integrações, plugins executáveis e operações globais ficam fora da fase geral.
-
-O fluxo de agente é uma fase opt-in separada. Ele exige o executável local `opencode` e
-usa somente o modelo gratuito `opencode/big-pickle`:
-
-```bash
-HERDR_INTEGRATION_SOCKET="$HOME/.config/herdr/sessions/pytest/herdr.sock" \
-  uv run pytest --run-integration --run-agent-integration -m agent_integration --no-cov
-```
-
-Execute esse comando dentro de um contexto Herdr autorizado. O teste cria um workspace
-isolado, inicia o OpenCode por `agent.start`, valida `agent.list`, `agent.get`,
-`agent.read`, `agent.prompt` e `agent.wait`, e fecha o workspace ao terminar.
-
-### Publicação
-
-O workflow de publicação roda somente para tags que começam com `v` e exige que a tag
-corresponda à versão em `pyproject.toml`. Depois de configurar o Trusted Publisher do
-projeto `herdr-client` no PyPI e o ambiente `pypi` no GitHub, publique uma versão com:
+Package releases are triggered by version tags after PyPI Trusted Publishing is
+configured:
 
 ```bash
 git tag v0.2.0
 git push origin v0.2.0
 ```
 
-## Licença
+Documentation deploys to GitHub Pages from `main`.
+
+## License
 
 Apache License 2.0.

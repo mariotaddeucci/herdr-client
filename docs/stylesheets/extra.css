@@ -1,0 +1,51 @@
+:root {
+  --md-primary-fg-color: #143642;
+  --md-primary-fg-color--light: #1d5264;
+  --md-primary-fg-color--dark: #0d2630;
+  --md-accent-fg-color: #16c79a;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-default-bg-color: #10191d;
+  --md-code-bg-color: #0b1215;
+  --md-primary-fg-color: #102b34;
+  --md-primary-fg-color--light: #1b4a58;
+  --md-primary-fg-color--dark: #08171d;
+  --md-accent-fg-color: #42e6b8;
+}
+
+.hero {
+  padding: 2.5rem 0 1.5rem;
+}
+
+.hero h1 {
+  font-size: clamp(2.2rem, 6vw, 4rem);
+  margin-bottom: 0.4rem;
+}
+
+.hero p {
+  font-size: 1.2rem;
+  max-width: 42rem;
+}
+
+.hero .md-button {
+  margin: 0.35rem 0.35rem 0.35rem 0;
+}
+
+.feature-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  margin: 1.5rem 0;
+}
+
+.feature-card {
+  border: 1px solid var(--md-default-fg-color--lightest);
+  border-radius: 0.4rem;
+  padding: 1rem;
+}
+
+.feature-card strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}

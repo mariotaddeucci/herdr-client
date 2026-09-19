@@ -1,0 +1,81 @@
+site_name: herdr-client
+site_description: Sync and async Python clients for the herdr Unix socket API
+site_url: https://mariotaddeucci.github.io/herdr-client/
+repo_url: https://github.com/mariotaddeucci/herdr-client
+repo_name: mariotaddeucci/herdr-client
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.instant
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            filters: public
+            inherited_members: false
+            members_order: source
+            separate_signature: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_signature_annotations: true
+            show_source: false
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - Home: index.md
+  - Get started:
+      - Installation: getting-started/installation.md
+      - Quickstart: getting-started/quickstart.md
+      - Concepts: getting-started/concepts.md
+  - Guides:
+      - Client configuration: guides/client-configuration.md
+      - Workspaces and panes: guides/workspaces-and-panes.md
+      - Reading and waiting: guides/reading-and-waiting.md
+      - Events: guides/events.md
+      - Raw requests: guides/raw-requests.md
+      - Errors and timeouts: guides/errors.md
+  - Reference:
+      - Client API: reference/clients.md
+      - Subscriptions: reference/subscriptions.md
+      - Types: reference/types.md
+      - Exceptions: reference/exceptions.md
+      - Protocol coverage: reference/protocol.md
+  - Contributing: contributing.md
+  - Publishing: publishing.md
