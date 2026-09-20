@@ -66,6 +66,23 @@ class AsyncSubscription:
         timeout: float,
         subscriptions: Iterable[EventSubscription],
     ) -> None:
+        """Prepare an asynchronous subscription without opening the socket.
+
+        Args:
+            socket_path: Unix socket path used for the subscription connection.
+            timeout: Timeout in seconds for connect, write and read operations.
+            subscriptions: Event filters sent to ``events.subscribe`` when the
+                context is entered.
+
+        Example:
+            ```python
+            subscription = AsyncSubscription(
+                Path("/tmp/herdr.sock"),
+                timeout=5.0,
+                subscriptions=[{"event": "pane.output"}],
+            )
+            ```
+        """
         self._socket_path = socket_path
         self._timeout = timeout
         self._subscriptions = list(subscriptions)
@@ -75,12 +92,28 @@ class AsyncSubscription:
 
     @property
     def ack(self) -> SubscriptionAck:
-        """Return the server acknowledgement after entering the context."""
+        """Return the server acknowledgement after entering the context.
+
+        Example:
+            ```python
+            async with client.subscribe([{"event": "pane.output"}]) as stream:
+                print(stream.ack["result"])
+            ```
+        """
         if self._ack is None:
             raise RuntimeError("subscription has not been opened")
         return self._ack
 
     async def __aenter__(self) -> Self:
+        """Open the subscription and return it for an ``async with`` block.
+
+        Example:
+            ```python
+            async with client.subscribe([{"event": "pane.output"}]) as stream:
+                async for event in stream.events():
+                    print(event)
+            ```
+        """
         if self._writer is not None:
             raise RuntimeError("subscription is already open")
 
@@ -110,17 +143,38 @@ class AsyncSubscription:
         exc: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
+        """Close the subscription when leaving an ``async with`` block."""
         await self.aclose()
 
     async def aclose(self) -> None:
-        """Close the subscription connection, if it is open."""
+        """Close the subscription connection, if it is open.
+
+        Example:
+            ```python
+            stream = client.subscribe([{"event": "pane.output"}])
+            async with stream:
+                print(stream.ack)
+            await stream.aclose()
+            ```
+        """
         writer, self._writer = self._writer, None
         self._reader = None
         if writer is not None:
             await close_writer(writer)
 
     async def events(self) -> AsyncIterator[EventEnvelope]:
-        """Yield pushed event payloads until the server closes the socket."""
+        """Yield pushed event payloads until the server closes the socket.
+
+        Raises:
+            RuntimeError: If the subscription has not been opened with ``async with``.
+
+        Example:
+            ```python
+            async with client.subscribe([{"event": "pane.output"}]) as stream:
+                async for event in stream.events():
+                    print(event["event"])
+            ```
+        """
         reader = self._reader
         if reader is None or self._writer is None:
             raise RuntimeError("subscription has not been opened")
@@ -154,6 +208,14 @@ class AsyncHerdrClient(AsyncMethodStubs):
         Raises:
             ValueError: If both ``socket_path`` and ``session`` are provided, or if
                 ``timeout`` is not positive.
+
+        Example:
+            ```python
+            from herdr_client import AsyncHerdrClient
+
+            client = AsyncHerdrClient(session="work", timeout=5.0)
+            print(client.socket_path)
+            ```
         """
         if socket_path is not None and session is not None:
             raise ValueError("socket_path and session are mutually exclusive")
@@ -291,6 +353,13 @@ class AsyncHerdrClient(AsyncMethodStubs):
 
         Returns:
             The server's pong result.
+
+        Example:
+            ```python
+            client = AsyncHerdrClient()
+            pong = await client.ping()
+            print(pong["version"])
+            ```
         """
         return await self.request("ping")
 
@@ -299,6 +368,14 @@ class AsyncHerdrClient(AsyncMethodStubs):
 
         Returns:
             A schema-derived workspace list result.
+
+        Example:
+            ```python
+            client = AsyncHerdrClient()
+            result = await client.workspace_list()
+            for workspace in result["workspaces"]:
+                print(workspace["workspace_id"])
+            ```
         """
         return await self.request("workspace.list")
 
@@ -311,6 +388,13 @@ class AsyncHerdrClient(AsyncMethodStubs):
 
         Returns:
             A schema-derived tab list result.
+
+        Example:
+            ```python
+            client = AsyncHerdrClient()
+            result = await client.tab_list(workspace_id="main")
+            print(result["tabs"])
+            ```
         """
         params: TabListParams = {}
         if workspace_id is not None:
@@ -326,6 +410,13 @@ class AsyncHerdrClient(AsyncMethodStubs):
 
         Returns:
             A schema-derived pane list result.
+
+        Example:
+            ```python
+            client = AsyncHerdrClient()
+            result = await client.pane_list(workspace_id="main")
+            print(result["panes"])
+            ```
         """
         params: PaneListParams = {}
         if workspace_id is not None:
@@ -341,6 +432,12 @@ class AsyncHerdrClient(AsyncMethodStubs):
 
         Returns:
             The server's successful command result.
+
+        Example:
+            ```python
+            client = AsyncHerdrClient()
+            await client.pane_send_text("build", "printf 'ready\\n'")
+            ```
         """
         params: PaneSendTextParams = {"pane_id": pane_id, "text": text}
         return await self.request("pane.send_text", params)
@@ -354,6 +451,12 @@ class AsyncHerdrClient(AsyncMethodStubs):
 
         Returns:
             The server's successful command result.
+
+        Example:
+            ```python
+            client = AsyncHerdrClient()
+            await client.pane_send_keys("build", ["Enter"])
+            ```
         """
         params: PaneSendKeysParams = {"pane_id": pane_id, "keys": list(keys)}
         return await self.request("pane.send_keys", params)
@@ -373,6 +476,14 @@ class AsyncHerdrClient(AsyncMethodStubs):
 
         Returns:
             The server's successful command result.
+
+        Example:
+            ```python
+            client = AsyncHerdrClient()
+            await client.pane_send_input(
+                "build", text="printf 'ready\\n'", keys=["Enter"]
+            )
+            ```
         """
         params: PaneSendInputParams = {
             "pane_id": pane_id,
@@ -400,6 +511,13 @@ class AsyncHerdrClient(AsyncMethodStubs):
 
         Returns:
             A typed pane read response containing the requested output.
+
+        Example:
+            ```python
+            client = AsyncHerdrClient()
+            result = await client.pane_read("build", source="recent", lines=20)
+            print(result["text"])
+            ```
         """
         params: PaneReadParams = {
             "pane_id": pane_id,
@@ -433,6 +551,17 @@ class AsyncHerdrClient(AsyncMethodStubs):
 
         Returns:
             The matched output and match metadata.
+
+        Example:
+            ```python
+            client = AsyncHerdrClient()
+            result = await client.pane_wait_for_output(
+                "build",
+                match={"type": "substring", "value": "ready"},
+                timeout_ms=5_000,
+            )
+            print(result["matched"])
+            ```
         """
         params: PaneWaitForOutputParams = {
             "pane_id": pane_id,
@@ -457,6 +586,9 @@ class AsyncHerdrClient(AsyncMethodStubs):
         Returns:
             An async subscription context manager. Enter it before iterating over
             ``events()``.
+
+        The ``subscriptions`` iterable contains event filters, for example
+        ``{"event": "pane.output"}``.
 
         Example:
             ```python

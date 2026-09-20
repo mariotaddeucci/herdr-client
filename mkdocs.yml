@@ -103,7 +103,52 @@ nav:
   - Reference:
       - API overview: reference/index.md
       - Client API: reference/clients.md
+      - Sync:
+          - Client:
+              - Constructor: reference/clients/herdr-client.md
+              - request: reference/clients/herdr-client/request.md
+              - ping: reference/clients/herdr-client/ping.md
+              - workspace_list: reference/clients/herdr-client/workspace-list.md
+              - tab_list: reference/clients/herdr-client/tab-list.md
+              - pane_list: reference/clients/herdr-client/pane-list.md
+              - pane_send_text: reference/clients/herdr-client/pane-send-text.md
+              - pane_send_keys: reference/clients/herdr-client/pane-send-keys.md
+              - pane_send_input: reference/clients/herdr-client/pane-send-input.md
+              - pane_read: reference/clients/herdr-client/pane-read.md
+              - pane_wait_for_output: reference/clients/herdr-client/pane-wait-for-output.md
+              - subscribe: reference/clients/herdr-client/subscribe.md
+          - Subscription:
+              - Constructor: reference/subscriptions/subscription.md
+              - ack: reference/subscriptions/subscription/ack.md
+              - __enter__: reference/subscriptions/subscription/enter.md
+              - __exit__: reference/subscriptions/subscription/exit.md
+              - close: reference/subscriptions/subscription/close.md
+              - events: reference/subscriptions/subscription/events.md
+      - Async:
+          - Client:
+              - Constructor: reference/clients/async-herdr-client.md
+              - request: reference/clients/async-herdr-client/request.md
+              - ping: reference/clients/async-herdr-client/ping.md
+              - workspace_list: reference/clients/async-herdr-client/workspace-list.md
+              - tab_list: reference/clients/async-herdr-client/tab-list.md
+              - pane_list: reference/clients/async-herdr-client/pane-list.md
+              - pane_send_text: reference/clients/async-herdr-client/pane-send-text.md
+              - pane_send_keys: reference/clients/async-herdr-client/pane-send-keys.md
+              - pane_send_input: reference/clients/async-herdr-client/pane-send-input.md
+              - pane_read: reference/clients/async-herdr-client/pane-read.md
+              - pane_wait_for_output: reference/clients/async-herdr-client/pane-wait-for-output.md
+              - subscribe: reference/clients/async-herdr-client/subscribe.md
+          - Subscription:
+              - Constructor: reference/subscriptions/async-subscription.md
+              - ack: reference/subscriptions/async-subscription/ack.md
+              - __aenter__: reference/subscriptions/async-subscription/aenter.md
+              - __aexit__: reference/subscriptions/async-subscription/aexit.md
+              - aclose: reference/subscriptions/async-subscription/aclose.md
+              - events: reference/subscriptions/async-subscription/events.md
       - Subscriptions: reference/subscriptions.md
+      - Functions:
+          - DEFAULT_SOCKET_CANDIDATES: reference/functions/default-socket-candidates.md
+          - resolve_socket_path: reference/functions/resolve-socket-path.md
       - Types: reference/types.md
       - Exceptions: reference/exceptions.md
       - Protocol coverage: reference/protocol.md

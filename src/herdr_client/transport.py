@@ -19,7 +19,24 @@ def session_socket_path(session: str) -> Path:
 
 
 def DEFAULT_SOCKET_CANDIDATES(session: str | None = None) -> list[Path]:
-    """Return socket candidates in herdr's documented precedence order."""
+    """Return socket candidates in Herdr's documented precedence order.
+
+    Args:
+        session: Optional named Herdr session. When supplied, only that session's
+            socket path is returned.
+
+    Returns:
+        Candidate paths ordered by precedence. Without ``session``, the result uses
+        ``HERDR_SOCKET_PATH``, then ``HERDR_SESSION``, then the default socket.
+
+    Example:
+        ```python
+        from herdr_client import DEFAULT_SOCKET_CANDIDATES
+
+        candidates = DEFAULT_SOCKET_CANDIDATES(session="work")
+        print(candidates[0])
+        ```
+    """
     if session is not None:
         return [session_socket_path(session)]
 
@@ -38,7 +55,28 @@ def resolve_socket_path(
     candidates: Iterable[Path] | None = None,
     session: str | None = None,
 ) -> Path:
-    """Resolve the first existing socket path from the candidate list."""
+    """Resolve the first existing socket path from the candidate list.
+
+    Args:
+        candidates: Optional paths to check in order. When omitted, use Herdr's
+            standard environment and default socket resolution order.
+        session: Optional named session used to build the candidate path when
+            ``candidates`` is omitted.
+
+    Returns:
+        The first existing Unix socket path.
+
+    Raises:
+        FileNotFoundError: If none of the candidate paths exists.
+
+    Example:
+        ```python
+        from herdr_client import resolve_socket_path
+
+        socket_path = resolve_socket_path(session="work")
+        print(socket_path)
+        ```
+    """
     resolved_candidates = (
         list(candidates)
         if candidates is not None

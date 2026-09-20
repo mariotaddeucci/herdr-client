@@ -1,12 +1,18 @@
 # Client API
 
-The sync and async clients intentionally expose the same operation names, parameters
-and return models. The async methods must be awaited; `subscribe()` returns an async
-subscription object.
+The sync and async clients intentionally expose the same operation names, parameters,
+return models and protocol envelopes. The async methods must be awaited; both
+`subscribe()` methods return a long-lived subscription object.
 
-Both clients connect to a local Unix socket and close ordinary request connections
-after one response. Use a subscription when the server needs to push events over a
-long-lived connection.
+Both clients connect to a local Unix socket. Ordinary requests use one connection per
+response, while subscriptions keep a connection open for server-pushed events.
+
+## Choose a client
+
+| Client | Use it when | Reference |
+| --- | --- | --- |
+| `HerdrClient` | A script or blocking application owns the call site | [`HerdrClient` constructor](clients/herdr-client.md) |
+| `AsyncHerdrClient` | An asyncio application must avoid blocking its event loop | [`AsyncHerdrClient` constructor](clients/async-herdr-client.md) |
 
 ## Operation map
 
@@ -21,12 +27,13 @@ long-lived connection.
 | `pane_send_input()` | Send text and keys together | `OkResult` |
 | `pane_read()` | Read pane output | `PaneReadResponse` |
 | `pane_wait_for_output()` | Wait for a match in pane output | `OutputMatchedResult` |
-| `subscribe()` | Consume pushed events | `Subscription` |
+| `subscribe()` | Consume pushed events | `Subscription` or `AsyncSubscription` |
 | `request()` | Call any canonical protocol method | Method-specific result |
 
 ## Connection configuration
 
-The constructor accepts one explicit connection source:
+Both constructors accept `socket_path`, `session` and `timeout`. `socket_path` and
+`session` are mutually exclusive; use one or the other:
 
 ```python
 from herdr_client import HerdrClient
@@ -39,56 +46,13 @@ client = HerdrClient(
 
 Use `session="work"` instead of `socket_path` to resolve a named session. If neither
 is supplied, the client follows the documented environment and default socket search
-order.
+order. See the constructor pages for the complete signature and lifecycle details.
 
-## Synchronous client
+## Detailed method pages
 
-::: herdr_client.HerdrClient
-    options:
-      members:
-        - __init__
-        - request
-        - ping
-        - workspace_list
-        - tab_list
-        - pane_list
-        - pane_send_text
-        - pane_send_keys
-        - pane_send_input
-        - pane_read
-        - pane_wait_for_output
-        - subscribe
-      inherited_members: false
-      show_if_no_docstring: true
-      show_signature_annotations: true
-      separate_signature: true
-      show_source: true
+The constructor pages below are the entry points for the reference. Each one contains
+shortlinks to a separate page for every constructor and method, with the generated
+signature and its full docstring:
 
-## Asynchronous client
-
-::: herdr_client.AsyncHerdrClient
-    options:
-      members:
-        - __init__
-        - request
-        - ping
-        - workspace_list
-        - tab_list
-        - pane_list
-        - pane_send_text
-        - pane_send_keys
-        - pane_send_input
-        - pane_read
-        - pane_wait_for_output
-        - subscribe
-      inherited_members: false
-      show_if_no_docstring: true
-      show_signature_annotations: true
-      separate_signature: true
-      show_source: true
-
-## Choosing a client
-
-Use `HerdrClient` for scripts and blocking applications. Use `AsyncHerdrClient` when
-the surrounding application already runs an `asyncio` event loop or needs to monitor
-multiple sockets without blocking the loop.
+- [`HerdrClient`](clients/herdr-client.md)
+- [`AsyncHerdrClient`](clients/async-herdr-client.md)
