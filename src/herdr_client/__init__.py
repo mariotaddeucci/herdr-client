@@ -1,5 +1,6 @@
 """Sync and async Python clients for the herdr Unix socket API."""
 
+from ._version import __version__
 from .async_client import AsyncHerdrClient, AsyncSubscription
 from .exceptions import HerdrApiError, HerdrClientError
 from .interfaces import (
@@ -101,5 +102,6 @@ __all__ = [
     "TabListResult",
     "WorkspaceInfo",
     "WorkspaceListResult",
+    "__version__",
     "resolve_socket_path",
 ]

@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling>=1.27.0"]
+requires = ["hatchling>=1.27.0", "hatch-vcs>=0.5.0"]
 build-backend = "hatchling.build"
 
 [project]
 name = "herdr-client"
-version = "0.2.0"
+dynamic = ["version"]
 description = "Sync and async Python clients for the herdr Unix socket API"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -25,6 +25,13 @@ dependencies = []
 Homepage = "https://github.com/mariotaddeucci/herdr-client"
 Repository = "https://github.com/mariotaddeucci/herdr-client"
 Issues = "https://github.com/mariotaddeucci/herdr-client/issues"
+
+[tool.hatch.version]
+source = "vcs"
+fallback-version = "0.0.0.dev0"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/herdr_client/_version.py"
 
 [dependency-groups]
 dev = [

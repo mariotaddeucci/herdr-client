@@ -1,9 +1,8 @@
 name: Publish package to PyPI
 
 on:
-  push:
-    tags:
-      - "v*"
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -16,6 +15,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Python
@@ -33,9 +34,9 @@ jobs:
 
       - name: Verify release tag
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          PACKAGE_VERSION="$(uv run python -c 'import tomllib; from pathlib import Path; print(tomllib.loads(Path("pyproject.toml").read_text())["project"]["version"])')"
+          PACKAGE_VERSION="$(uv run python -c 'from importlib.metadata import version; print(version("herdr-client"))')"
           test "${RELEASE_TAG#v}" = "$PACKAGE_VERSION"
 
       - name: Run tests
@@ -57,6 +58,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.release.tag_name }}
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Install uv
@@ -75,7 +78,7 @@ jobs:
 
   publish:
     name: Publish to PyPI
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.event.release.tag_name, 'v')
     needs: [checks, build]
     runs-on: ubuntu-latest
     environment:

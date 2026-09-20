@@ -2,17 +2,17 @@
 
 ## Package releases
 
-Package releases are published to PyPI by `.github/workflows/publish.yml` when a tag
-matching the package version is pushed:
+Package releases are published to PyPI by `.github/workflows/publish.yml` when a
+GitHub release is published. The package version is derived from the release tag by
+`hatch-vcs`:
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+gh release create v0.1.0 --target main --generate-notes
 ```
 
-The workflow runs tests and static checks, builds the wheel and source distribution,
-then publishes through PyPI Trusted Publishing. It does not use a long-lived PyPI API
-token.
+The workflow checks that `v0.1.0` produces package version `0.1.0`, runs tests and
+static checks, builds the wheel and source distribution, then publishes through PyPI
+Trusted Publishing. It does not use a long-lived PyPI API token.
 
 ## Documentation releases
 

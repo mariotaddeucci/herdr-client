@@ -131,12 +131,11 @@ are opt-in and require an explicitly configured Herdr socket.
 
 ## Publishing
 
-Package releases are triggered by version tags after PyPI Trusted Publishing is
-configured:
+Package releases are published when a GitHub release is created after PyPI Trusted
+Publishing is configured. The release tag must match the version detected from Git:
 
 ```bash
-git tag v0.2.0
-git push origin v0.2.0
+gh release create v0.1.0 --target main --generate-notes
 ```
 
 Documentation deploys to GitHub Pages from `main`.
